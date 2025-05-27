@@ -55,7 +55,9 @@ return [
     |
     */
 
-    'url' => env('APP_URL', 'http://localhost'),
+    //'url' => env('APP_URL', 'http://localhost'),
+
+    'api_base_url' => env('API_BASE_URL', 'https://brincaeste.com/api'),
 
     'asset_url' => env('ASSET_URL'),
 

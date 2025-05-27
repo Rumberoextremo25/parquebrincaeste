@@ -12,6 +12,11 @@ use Illuminate\Validation\Rules\Password;
 
 class PageController extends Controller
 {
+    protected $baseUrl;
+    public function __construct()
+    {
+        $this->baseUrl = config('app.api_base_url'); // Configuración de la URL base
+    }
     public function home()
     {
         return Inertia::render('Home/Home', []);
