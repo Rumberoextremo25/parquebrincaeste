@@ -1,0 +1,150 @@
+/* Estilos generales */
+body {
+  font-family: 'Roboto', Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5; /* Color de fondo suave */
+}
+
+/* Estilos del carrito */
+.cart-container {
+  max-width: 800px; /* Ancho máximo del contenedor */
+  margin: 40px auto; /* Centrar el contenedor */
+  padding: 30px; /* Espaciado interno */
+  background-color: #ffffff; /* Fondo blanco */
+  border-radius: 12px; /* Bordes redondeados */
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1); /* Sombra más profunda */
+}
+
+/* Título del carrito */
+.cart-title {
+  font-size: 2rem; /* Tamaño de fuente más grande */
+  font-weight: bold; /* Negrita */
+  color: #333; /* Color oscuro */
+  margin-bottom: 20px; /* Espacio inferior */
+  text-align: center; /* Centrar el texto */
+}
+
+/* Mensaje de carrito vacío */
+.empty-cart {
+  text-align: center; /* Centrar el texto */
+  padding: 40px 0; /* Espaciado vertical */
+}
+
+.empty-cart p {
+  font-size: 1.2rem; /* Tamaño de fuente más grande */
+  color: #666; /* Color gris */
+  margin-bottom: 20px; /* Espacio inferior */
+}
+
+/* Tabla del carrito */
+.cart-table {
+  width: 100%; /* Asegurarse de que ocupe todo el ancho */
+  border-collapse: collapse; /* Colapsar bordes */
+  font-size: 1rem; /* Tamaño de fuente */
+  color: #333; /* Color oscuro */
+}
+
+/* Estilos de las celdas de la tabla */
+.cart-table th,
+.cart-table td {
+  padding: 15px; /* Espaciado interno */
+  text-align: left; /* Alinear a la izquierda */
+  border-bottom: 1px solid #ddd; /* Borde inferior */
+}
+
+.cart-table th {
+  background-color: #f5f5f5; /* Fondo ligero para encabezados */
+  font-weight: bold; /* Negrita */
+}
+
+/* Detalles del artículo */
+.item-details {
+  display: flex; /* Usar flexbox */
+  align-items: center; /* Alinear verticalmente */
+}
+
+/* Nombre del artículo */
+.item-name {
+  font-size: 1.2rem; /* Tamaño de fuente más grande */
+  font-weight: bold; /* Negrita */
+  margin: 0; /* Sin margen */
+}
+
+/* Control de cantidad */
+.quantity-control {
+  display: flex; /* Usar flexbox */
+  align-items: center; /* Alinear verticalmente */
+  justify-content: center; /* Centrar horizontalmente */
+}
+
+/* Botones de control de cantidad */
+.quantity-control button {
+  width: 35px; /* Ancho del botón */
+  height: 35px; /* Alto del botón */
+  background-color: #f5f5f5; /* Fondo claro */
+  border: none; /* Sin borde */
+  border-radius: 5px; /* Bordes redondeados */
+  font-size: 1rem; /* Tamaño de fuente */
+  color: #333; /* Color oscuro */
+  cursor: pointer; /* Cambiar cursor al pasar por encima */
+  transition: background-color 0.3s; /* Transición suave */
+}
+
+.quantity-control button:hover {
+  background-color: #e0e0e0; /* Color de fondo al pasar el ratón */
+}
+
+/* Entrada de cantidad */
+.quantity-control input {
+  width: 50px; /* Ancho de la entrada */
+  height: 35px; /* Alto de la entrada */
+  text-align: center; /* Centrar texto */
+  border: 1px solid #ddd; /* Borde claro */
+  border-radius: 5px; /* Bordes redondeados */
+  font-size: 1rem; /* Tamaño de fuente */
+  color: #333; /* Color oscuro */
+  margin: 0 8px; /* Espacio horizontal */
+}
+
+/* Precio y subtotal del artículo */
+.item-price,
+.item-subtotal {
+  font-weight: bold; /* Negrita */
+}
+
+/* Total del carrito */
+.total {
+  display: flex; /* Usar flexbox */
+  justify-content: flex-end; /* Alinear a la derecha */
+  font-size: 1.5rem; /* Tamaño de fuente más grande */
+  font-weight: bold; /* Negrita */
+  color: #333; /* Color oscuro */
+  margin-top: 20px; /* Espacio superior */
+}
+
+/* Acciones del carrito */
+.actions {
+  display: flex; /* Usar flexbox */
+  justify-content: space-between; /* Espacio entre elementos */
+  margin-top: 20px; /* Espacio superior */
+}
+
+/* Botón de pago */
+.checkout-btn {
+  display: inline-block; /* Mostrar como bloque en línea */
+  padding: 12px 24px; /* Espaciado interno */
+  background-color: #4caf50; /* Color verde */
+  border: none; /* Sin borde */
+  border-radius: 5px; /* Bordes redondeados */
+  font-size: 1rem; /* Tamaño de fuente */
+  font-weight: bold; /* Negrita */
+  color: #fff; /* Color blanco */
+  cursor: pointer; /* Cambiar cursor al pasar por encima */
+  transition: background-color 0.3s, transform 0.2s; /* Transiciones suaves */
+}
+
+.checkout-btn:hover {
+  background-color: #45a049; /* Color de fondo al pasar el ratón */
+  transform: translateY(-2px); /* Efecto de elevación */
+}

@@ -1,0 +1,72 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+@import "flatpickr/dist/flatpickr.css";
+:root {
+    font-family: "Inter", sans-serif !important;
+}
+@supports (font-variation-settings: normal) {
+    :root {
+        font-family: "Inter var", sans-serif !important;
+    }
+}
+@layer components {
+    .btn {
+        @apply rounded-md px-3.5 py-2 text-center text-sm font-semibold shadow-sm;
+    }
+    .btn-primary {
+        @apply bg-indigo-800  text-white hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-800 disabled:opacity-30;
+    }
+
+    .btn-secondary {
+        @apply bg-white  text-indigo-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 capitalize;
+    }
+}
+.table-list tr {
+    @apply text-sm;
+}
+.table-list tbody {
+    @apply border-t border-indigo-300 divide-y divide-indigo-200;
+}
+.table-list tbody tr {
+    @apply hover:bg-indigo-50;
+}
+.table-list tr th {
+    @apply pb-3.5 px-2 text-start text-xs text-indigo-500 font-medium;
+}
+.table-list tr td {
+    @apply py-3;
+}
+.table-list tr th:last-child {
+    @apply text-right;
+}
+.table-list tbody tr td:last-child {
+    @apply text-right;
+}
+.table-list tr th:first-child,
+.table-list tr td:first-child {
+    @apply pr-4;
+}
+.table-list tr th:last-child,
+.table-list tr td:last-child {
+    @apply pl-4;
+}
+
+.table-list tbody tr td {
+    @apply px-3;
+}
+
+@layer base {
+    .select-form,
+    .input-form,
+    .input-textarea {
+        @apply block w-full rounded-md border-0 py-2 px-3 text-indigo-900 ring-1 ring-inset ring-indigo-300 placeholder:text-indigo-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 text-sm mt-2 disabled:bg-indigo-200;
+    }
+    .input-radio {
+        @apply h-4 w-4 border-indigo-300 text-indigo-600 focus:ring-indigo-600;
+    }
+    .input-checkbox {
+        @apply h-4 w-4 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-600;
+    }
+}
+

@@ -1,0 +1,134 @@
+/* Estilos del contenedor del checkout */
+.checkout-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+}
+
+/* Contenedor del formulario */
+.checkout-form-container {
+    flex: 1;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    max-width: 600px;
+    margin-right: 20px; /* Espacio entre el formulario y el carrito */
+}
+
+/* Títulos de sección */
+.section-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #2d3748; /* Color gris oscuro */
+}
+
+/* Estilo de los campos de entrada */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 1rem;
+    border: 1px solid #d1d5db; /* Color gris claro */
+    border-radius: 6px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
+select:focus {
+    border-color: #3b82f6; /* Color azul */
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); /* Sombra azul suave */
+    outline: none;
+}
+
+/* Botón de envío */
+.btn-submit {
+    background-color: #3b82f6; /* Color azul */
+    color: white;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s, transform 0.2s;
+    width: 100%; /* Botón ocupa todo el ancho */
+}
+
+.btn-submit:hover {
+    background-color: #2563eb; /* Color azul más oscuro */
+    transform: translateY(-2px); /* Efecto de elevación */
+}
+
+/* Mensaje de error */
+.error-message {
+    background-color: #fecaca; /* Fondo rojo claro */
+    color: #b91c1c; /* Texto rojo */
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    border: 1px solid #fca5a1; /* Borde rojo */
+}
+
+/* Estilo del carrito */
+.col-25 {
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    max-width: 300px; /* Ancho máximo del carrito */
+}
+
+/* Estilo de los elementos del carrito */
+.price {
+    font-weight: bold;
+    color: #111827; /* Color negro */
+}
+
+/* Estilo de los controles de cantidad */
+.cart-item {
+    margin-bottom: 15px; /* Espacio entre los elementos del carrito */
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.quantity-controls button {
+    background-color: #3b82f6; /* Color azul */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+.quantity-controls button:disabled {
+    background-color: #d1d5db; /* Color gris claro */
+    cursor: not-allowed;
+}
+
+.quantity {
+    font-weight: bold;
+    margin: 0 10px;
+}
+
+/* Separador */
+hr {
+    border: 0;
+    height: 1px;
+    background: #e5e7eb; /* Color gris claro */
+    margin: 1rem 0;
+}
+
+a:hover {
+    text-decoration: underline; /* Subrayado al pasar el mouse */
+}
