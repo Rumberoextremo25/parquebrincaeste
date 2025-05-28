@@ -12,20 +12,33 @@ const Checkout = ({ cartItems, user }) => {
         ciudad: '',
         codigo_postal: '',
         promoCode: '',
-        paymentMethod: ''
+        paymentMethod: '',
+        nombre_banco: '',
+        numero_telefono: '',
+        cedula: '',
+        clave_dinamica: '',
+        monto: 0
     });
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [total, setTotal] = useState(0);
+    const [showMobilePaymentInfo, setShowMobilePaymentInfo] = useState(false);
 
     useEffect(() => {
-        const totalAmount = cartItems.reduce((acc, item) => acc + item.product.price, 0);
+        const totalAmount = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
         setTotal(totalAmount);
+        setFormData((prevData) => ({ ...prevData, monto: totalAmount })); // Establecer el monto automáticamente
     }, [cartItems]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
+
+        if (name === 'paymentMethod' && value === 'mobile-payment') {
+            setShowMobilePaymentInfo(true);
+        } else {
+            setShowMobilePaymentInfo(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -137,6 +150,52 @@ const Checkout = ({ cartItems, user }) => {
                                 <option value="in-store">Pago en Caja</option>
                             </select>
                         </div>
+
+                        {/* Formulario adicional para Pago Móvil */}
+                        {showMobilePaymentInfo && (
+                            <div className="mobile-payment-info">
+                                <h3>Información de Pago Móvil</h3>
+                                <InputField
+                                    type="text"
+                                    name="nombre_banco"
+                                    label="Nombre del Banco"
+                                    value={formData.nombre_banco}
+                                    onChange={handleChange}
+                                    required
+                                />
+                                <InputField
+                                    type="tel"
+                                    name="numero_telefono"
+                                    label="Número de Teléfono"
+                                    value={formData.numero_telefono}
+                                    onChange={handleChange}
+                                    required
+                                />
+                                <InputField
+                                    type="text"
+                                    name="cedula"
+                                    label="Cédula"
+                                    value={formData.cedula}
+                                    onChange={handleChange}
+                                    required
+                                />
+                                <InputField
+                                    type="text"
+                                    name="clave_dinamica"
+                                    label="Clave Dinámica"
+                                    value={formData.clave_dinamica}
+                                    onChange={handleChange}
+                                    required
+                                />
+                                <InputField
+                                    type="number"
+                                    name="monto"
+                                    label="Monto"
+                                    value={formData.monto} // El monto se establece automáticamente
+                                    readOnly // Campo de solo lectura
+                                />
+                            </div>
+                        )}
 
                         <button type="submit" className="btn-submit" disabled={loading}>
                             {loading ? 'Procesando...' : 'Completar Compra'}

@@ -13,15 +13,11 @@ return new class extends Migration
     {
         Schema::create('ventas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('cliente_id')->constrained()->onDelete('cascade'); // Relación con la tabla clientes  
-            $table->foreignId('producto_id')->constrained()->onDelete('cascade'); // Relación con la tabla productos  
+            $table->foreignId('factura_id')->constrained('facturas')->onDelete('cascade');
+            $table->foreignId('producto_id')->constrained('productos'); // Asegúrate de tener la tabla productos
             $table->integer('cantidad');
-            $table->decimal('precio_unitario', 10, 2);
-            $table->decimal('monto', 10, 2); // Asegúrate de que esta línea esté presente  
-            $table->decimal('total', 10, 2);
-            $table->date('fecha_venta'); // Fecha de la venta  
-            $table->date('fecha'); // Nuevo campo fecha  
-            $table->timestamps(); // Campos created_at y updated_at  
+            $table->decimal('precio', 10, 2);
+            $table->timestamps();
         });
     }
 

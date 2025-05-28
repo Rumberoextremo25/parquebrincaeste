@@ -24,8 +24,11 @@ class TiendaController extends Controller
 
     public function comprar(Request $request)
     {
-        // Validar los datos del formulario
+        // Validar datos del producto y otros datos
         $validatedData = $request->validate([
+            'producto_id' => 'required|integer|exists:products,id',
+            'nombre' => 'required|string',
+            'precio' => 'required|numeric',
             'cantidad' => 'required|integer|min:1',
             'fecha' => 'required|date',
             'hora' => 'required|date_format:H:i',
@@ -35,14 +38,21 @@ class TiendaController extends Controller
             'tallaMedias' => 'nullable|string',
         ]);
 
-        // Procesar la compra (puedes agregar lógica para guardar en la base de datos, etc.)
-        // Aquí puedes calcular el total y cualquier otra lógica necesaria
-        $precioMedias = 2;
-        $totalMedias = $precioMedias * ($validatedData['cantidadMedias'] ?? 0);
-        $total = ($validatedData['cantidad'] * 5) + $totalMedias; // Cambia 5 por tu lógica de precio
+        // Calcular total basado en cantidad y precio
+        $total = $validatedData['cantidad'] * $validatedData['precio'];
 
-        // Redirigir a la vista de Checkout con los datos necesarios
+        // Crear un array con los datos del item para pasar a la vista
+        $cartItem = [
+            'producto_id' => $validatedData['producto_id'],
+            'nombre' => $validatedData['nombre'],
+            'cantidad' => $validatedData['cantidad'],
+            'precio' => $validatedData['precio'],
+            'total' => $total,
+        ];
+
+        // Pasar los datos a la vista de checkout
         return Inertia::render('Checkout/Checkout')->with([
+            'cartItems' => [$cartItem], // Puede ser una lista si hay más productos
             'total' => $total,
             'datos' => $validatedData,
         ]);

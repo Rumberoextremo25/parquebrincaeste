@@ -13,14 +13,15 @@ return new class extends Migration
     {
         Schema::create('facturas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('nombre_completo');
             $table->string('correo');
             $table->string('telefono');
             $table->string('direccion');
             $table->string('ciudad');
             $table->string('codigo_postal');
-            $table->decimal('total', 10, 2);
+            $table->string('promoCode')->nullable();
+            $table->string('paymentMethod');
+            $table->decimal('monto', 10, 2);
             $table->timestamps();
         });
     }

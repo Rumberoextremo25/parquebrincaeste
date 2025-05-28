@@ -9,26 +9,17 @@ class Product extends Model
 {
     use HasFactory;
 
-    // Definir la tabla si el nombre no es plural de forma automática
-    protected $table = 'products';
-
-    // Definir los atributos que se pueden asignar masivamente
     protected $fillable = [
-        'name',
-        'description',
-        'price',
+        'nombre',
+        'descripcion',
+        'precio',
         'stock',
-        'size',
-        'time',
-        'image_url', // Si tienes una columna para la imagen
+        'imagen',
     ];
 
-    // Si necesitas definir relaciones, puedes hacerlo aquí
-    public function orders()
+    public function ventas()
     {
-        return $this->hasMany(Order::class); // Relación con el modelo Order
+        return $this->hasMany(Venta::class);
     }
-
-    // Otros métodos y funciones del modelo pueden ir aquí
 }
 

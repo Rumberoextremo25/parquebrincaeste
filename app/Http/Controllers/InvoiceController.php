@@ -3,37 +3,33 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Invoice; // Asegúrate de tener el modelo Invoice
 use Barryvdh\DomPDF\Facade\PDF; // Importar la clase PDF
+use Inertia\Inertia;
+use App\Models\Factura;
 
 class InvoiceController extends Controller
 {
-    public function purchaseSuccess(Request $request)
+    public function purchaseSuccess($id)
     {
-        // Aquí deberías tener la lógica para obtener la información del pedido
-        $invoiceData = [
-            'id' => $request->input('invoice_id'),
-            'amount' => $request->input('amount'),
-            'date' => now(),
-            'customer_name' => $request->input('customer_name'),
-            // Agrega más campos según sea necesario
-        ];
+        // Buscar la factura por ID
+        $invoice = Factura::findOrFail($id);
 
-        // Guardar en la base de datos
-        $invoice = Invoice::create($invoiceData);
+        // Generar el PDF usando la vista 'invoices.invoice'
+        $pdf = PDF::loadView('invoices.invoice', ['invoice' => $invoice]);
 
-        // Generar PDF
-        $pdf = PDF::loadView('invoices.invoice', compact('invoice'));
-
-        return view('success', compact('invoice', 'pdf'));
+        // Retornar vista de éxito con los datos de la factura y PDF generado
+        return inertia('Checkout/Success', [
+            'invoice' => $invoice,
+            'pdf' => $pdf->output(), // Puedes enviar o usar el PDF como prefieras
+        ]);
     }
 
     public function download($id)
     {
-        $invoice = Invoice::findOrFail($id);
-        $pdf = PDF::loadView('invoices.invoice', compact('invoice'));
+        $invoice = Factura::findOrFail($id);
+        $pdf = PDF::loadView('invoices.invoice', ['invoice' => $invoice]);
 
-        // Abre el PDF en el navegador
+        // Stream del PDF al navegador
         return $pdf->stream('factura_' . $invoice->id . '.pdf');
     }
 }

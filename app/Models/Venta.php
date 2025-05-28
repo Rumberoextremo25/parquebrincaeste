@@ -1,43 +1,29 @@
-<?php  
+<?php
 
-namespace App\Models;  
+namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;  
-use Illuminate\Database\Eloquent\Model;  
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use App\Models\Product;
 
-class Venta extends Model  
-{  
-    use HasFactory;  
+class Venta extends Model
+{
+    use HasFactory;
 
-    // Definimos la tabla si no sigue la convención  
-    protected $table = 'ventas'; // Nombre de la tabla en la base de datos  
+    protected $fillable = [
+        'factura_id',
+        'producto_id',
+        'cantidad',
+        'precio',
+    ];
 
-    // Campos que pueden ser asignados masivamente  
-    protected $fillable = [  
-        'cliente_id',  
-        'producto_id',  
-        'cantidad',  
-        'precio_unitario',  
-        'total',  
-        'fecha_venta',
-        'fecha',  
-    ];  
+    public function factura()
+    {
+        return $this->belongsTo(Factura::class);
+    }
 
-    // Si necesitas definir fechas, puedes usar la propiedad 'dates'  
-    protected $dates = [  
-        'fecha_venta',  
-        'created_at',  
-        'updated_at',  
-    ];  
-
-    // Relaciones (Ejemplo)  
-    public function cliente()  
-    {  
-        return $this->belongsTo(Cliente::class);  
-    }  
-
-    public function producto()  
-    {  
-        return $this->belongsTo(Product::class);  
-    }  
+    public function producto()
+    {
+        return $this->belongsTo(Product::class); // Asegúrate de tener el modelo Producto
+    }
 }

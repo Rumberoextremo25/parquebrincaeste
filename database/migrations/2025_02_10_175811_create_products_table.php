@@ -11,19 +11,15 @@ return new class extends Migration
      */
     public function up()
     {
-        if (!Schema::hasTable('products')) {
-            Schema::create('products', function (Blueprint $table) {
-                $table->id();
-                $table->string('name');
-                $table->text('description')->nullable();
-                $table->decimal('price', 8, 2);
-                $table->integer('stock')->default(0);
-                $table->string('category');
-                $table->string('size')->nullable();
-                $table->time('time')->nullable();
-                $table->timestamps();
-            });
-        }
+        Schema::create('productos', function (Blueprint $table) {
+            $table->id();
+            $table->string('nombre');
+            $table->text('descripcion')->nullable();
+            $table->decimal('precio', 10, 2);
+            $table->integer('stock')->default(0);
+            $table->string('imagen')->nullable(); // Para almacenar la URL de la imagen del producto
+            $table->timestamps();
+        });
     }
 
     /**
