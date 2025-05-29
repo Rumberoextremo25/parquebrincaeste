@@ -13,6 +13,7 @@ use App\Models\Ticket;
 use App\Http\Controllers\Controller;
 use TCPDF;
 use App\Models\Finanza;
+use App\Models\Visita;
 
 class DashboardController extends Controller
 {
@@ -81,75 +82,61 @@ class DashboardController extends Controller
 
     // Metodos para Ventas
 
-    public function ventas()
+    public function Ventas()
     {
-        // Obtener la fecha actual
-        $hoy = Carbon::now();
+        $ventasDiarias = $this->obtenerVentasPorDia();
+        $ventasSemanales = $this->obtenerVentasPorSemana();
+        $ventasMensuales = $this->obtenerVentasPorMes();
+        $ventasAnuales = $this->obtenerVentasPorAnio();
 
-        // Ventas diarias
-        $ventasDiarias = Venta::whereDate('created_at', $hoy)->sum('monto');
-
-        // Ventas semanales
-        $ventasSemanales = Venta::where('created_at', '>=', $hoy->startOfWeek())
-            ->sum('monto');
-
-        // Ventas mensuales
-        $ventasMensuales = Venta::whereMonth('created_at', $hoy->month)
-            ->whereYear('created_at', $hoy->year)
-            ->sum('monto');
-
-        // Ventas anuales
-        $ventasAnuales = Venta::whereYear('created_at', $hoy->year)
-            ->sum('monto');
-
-        // Pasar datos a la vista
-        return view('ventas', [
-            'ventasDiarias' => $ventasDiarias,
-            'ventasSemanales' => $ventasSemanales,
-            'ventasMensuales' => $ventasMensuales,
-            'ventasAnuales' => $ventasAnuales,
-        ]);
+        return view('ventas', compact(
+            'ventasDiarias',
+            'ventasSemanales',
+            'ventasMensuales',
+            'ventasAnuales'
+        ));
     }
 
     // Metodos para Finanzas
 
     public function finanzas()
     {
-        // Obtener los ingresos totales (sumar todos los montos de ventas)  
-        $ingresosTotales = Venta::sum('monto');
+        // Obtener ventas del mes actual y año actual
+        $totalVentaMesActual = Venta::whereYear('fecha', date('Y'))
+            ->whereMonth('fecha', date('m'))
+            ->sum('monto');
 
-        // Obtener los gastos totales (sumar todos los montos de gastos)  
-        $gastosTotales = Gasto::sum('monto');
-
-        // Calcular el beneficio neto  
-        $beneficioNeto = $ingresosTotales - $gastosTotales;
-
-        // Almacenar los ingresos totales y el ingreso neto en la tabla finanzas
+        // Guardar en la tabla Finanza solo la venta total del mes actual
         Finanza::create([
-            'ingreso' => $ingresosTotales,
-            'gasto' => $gastosTotales, // Puedes almacenar los gastos si es necesario
-            'fecha' => now(), // O la fecha que desees almacenar
+            'ingreso' => $totalVentaMesActual,
+            'gasto' => 0,
+            'fecha' => now(),
+            'descripcion' => 'Ventas del mes ' . date('F Y'), //campo descripción
         ]);
 
-        // Obtener datos para el gráfico de ventas (agrupando por mes)  
+        // El resto de tu código original si quieres mantenerlo
+        $ingresosTotales = Venta::sum('monto');
+        $gastosTotales = Gasto::sum('monto');
+        $beneficioNeto = $ingresosTotales - $gastosTotales;
+
         $ventasPorMes = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total')
             ->groupBy('mes')
             ->orderBy('mes')
             ->pluck('total', 'mes');
 
-        // Convertir los datos de ventas por mes a un arreglo  
         $ventasData = $ventasPorMes->values()->toArray();
         $meses = $ventasPorMes->keys()->map(function ($mes) {
-            return date('F', mktime(0, 0, 0, $mes, 1)); // Convertir número de mes a nombre  
+            return date('F', mktime(0, 0, 0, $mes, 1));
         })->toArray();
 
-        // Retornar la vista 'finanzas' con los datos recolectados  
         return view('finanzas', [
             'ingresosTotales' => $ingresosTotales,
             'gastosTotales' => $gastosTotales,
             'beneficioNeto' => $beneficioNeto,
             'ventasData' => $ventasData,
             'meses' => $meses,
+            'ventasMesActual' => $totalVentaMesActual,
+            'ventasMesAnterior' => null,
         ]);
     }
 
@@ -159,43 +146,49 @@ class DashboardController extends Controller
         return view('finanzas', compact('ventasData', 'meses'));
     }
 
+    private function obtenerVentasPorDia()
+    {
+        $ventasPorDia = Venta::selectRaw('DATE(fecha) as dia, SUM(monto) as total')
+            ->groupBy('dia')
+            ->orderBy('dia')
+            ->get();
+
+        // Sumatoria total
+        return $ventasPorDia->sum('total');
+    }
+
+    // Datos de ventas por semana
+    private function obtenerVentasPorSemana()
+    {
+        $ventasPorSemana = Venta::selectRaw('WEEK(fecha) as semana, YEAR(fecha) as anio, SUM(monto) as total')
+            ->groupBy('anio', 'semana')
+            ->orderBy('anio')
+            ->orderBy('semana')
+            ->get();
+
+        return $ventasPorSemana->sum('total');
+    }
+
+    // Datos de ventas por mes
     private function obtenerVentasPorMes()
     {
-        // Obtener datos para el gráfico de ventas (agrupando por mes)  
         $ventasPorMes = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total')
             ->groupBy('mes')
             ->orderBy('mes')
-            ->pluck('total', 'mes');
+            ->get();
 
-        // Convertir los datos de ventas por mes a un arreglo  
-        $ventasData = $ventasPorMes->values()->toArray();
-        $meses = $ventasPorMes->keys()->map(function ($mes) {
-            return date('F', mktime(0, 0, 0, $mes, 1)); // Convertir número de mes a nombre  
-        })->toArray();
+        return $ventasPorMes->sum('total');
+    }
 
-        // Llenar los meses vacíos con ceros en caso de no haber ventas  
-        $ventasDataCompleto = [];
-        $mesesCompleto = [
-            'Enero',
-            'Febrero',
-            'Marzo',
-            'Abril',
-            'Mayo',
-            'Junio',
-            'Julio',
-            'Agosto',
-            'Septiembre',
-            'Octubre',
-            'Noviembre',
-            'Diciembre'
-        ];
+    // Datos de ventas por año
+    private function obtenerVentasPorAnio()
+    {
+        $ventasPorAnio = Venta::selectRaw('YEAR(fecha) as anio, SUM(monto) as total')
+            ->groupBy('anio')
+            ->orderBy('anio')
+            ->get();
 
-        foreach ($mesesCompleto as $mesCompleto) {
-            $mesIndex = array_search($mesCompleto, $meses);
-            $ventasDataCompleto[] = $mesIndex !== false ? $ventasData[$mesIndex] : 0;
-        }
-
-        return [$ventasDataCompleto, $mesesCompleto];
+        return $ventasPorAnio->sum('total');
     }
 
     //Logica para generar Reportes de Ventas Y Finanzas
@@ -237,5 +230,33 @@ class DashboardController extends Controller
 
         // Cerrar y generar el PDF
         $pdf->Output('reporte_ventas.pdf', 'I'); // 'I' para mostrar en el navegador
+    }
+
+    public function obtenerUsuariosYVisitantes()
+    {
+        // Cantidad de usuarios registrados
+        $cantidadUsuarios = User::count();
+
+        // Cantidad de visitantes únicos (por IP)
+        $cantidadVisitantes = Visita::distinct('ip')->count('ip');
+
+        return [
+            'usuarios' => $cantidadUsuarios,
+            'visitantes' => $cantidadVisitantes,
+        ];
+    }
+
+    public function registrarVisita(Request $request)
+    {
+        Visita::create([
+            'ip' => $request->ip()
+        ]);
+    }
+
+    public function dashboardData()
+    {
+        $usuario = User::count();
+        $visitante = Visita::distinct('ip')->count('ip');
+        return view('dashboard', compact('usuario', 'visitante'));
     }
 }
