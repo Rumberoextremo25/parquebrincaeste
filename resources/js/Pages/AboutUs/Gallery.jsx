@@ -4,19 +4,19 @@ import React, { useState } from "react";
 
 const Gallery = () => {
     const imgGallery = [
-        "/img/about/IMG_2750.jpg",
-        "/img/about/IMG_2756.jpg",
-        "/img/about/IMG_2754.jpg",
-        "/img/about/IMG_2751.jpg",
-        "/img/about/IMG_2752.jpg",
-        "/img/about/IMG_2753.jpg",
-        "/img/about/IMG_2747.jpg",
-        "/img/about/IMG_2755.jpg",
-        "/img/about/BrincaEste.jpg",
-        "img/about/IMG_8396.jpg",
-        "img/about/IMG_8397.jpg",
-        "img/about/IMG_3132.jpg",
-        "img/about/IMG_8643.jpg"
+        "/img/about/IMG_2750.png",
+        "/img/about/IMG_2756.png",
+        "/img/about/IMG_2754.png",
+        "/img/about/IMG_2751.png",
+        "/img/about/IMG_2752.png",
+        "/img/about/IMG_2753.png",
+        "/img/about/IMG_2747.png",
+        "/img/about/IMG_2755.png",
+        "/img/about/BrincaEste.png",
+        "img/about/IMG_8396.png",
+        "img/about/IMG_8397.png",
+        "img/about/IMG_3132.png",
+        "img/about/IMG_8643.png"
     ];
     const [lightboxController, setLightboxController] = useState({
         toggler: false,

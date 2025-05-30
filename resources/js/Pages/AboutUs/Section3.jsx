@@ -24,7 +24,7 @@ const Section3 = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/about/cumpleaños.webp"
+                        src="/img/about/cumpleaños.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />

@@ -23,7 +23,7 @@ const Section1 = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/about/IMG_2749.jpg"
+                        src="/img/about/IMG_2749.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
