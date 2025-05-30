@@ -31,8 +31,11 @@ Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
 
 Route::get('/cart', [ShoppingCartController::class, 'index'])->name('cart.index');
 
+// Para aceptar GET o POST
+Route::match(['get', 'post'], '/checkout', [CheckoutController::class, 'index']);
+
 // Ruta para procesar el checkout
-Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+Route::middleware(middleware: 'auth')->get('/checkout', [CheckoutController::class, 'index']);
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/success', [CheckoutController::class, 'success'])->name('success');
 
