@@ -18,8 +18,6 @@ class CheckoutController extends Controller
 
         // Obtener items del carrito desde la base de datos
         $cartItems = Cart::where('user_id', $user->id)->with('product')->get();
-        // Si no hay resultados, $cartItems está vacío
-        $firstItem = $cartItems[0]; // Error si está vacío
 
         return Inertia::render('Checkout/Checkout', [
             'cartItems' => $cartItems,
