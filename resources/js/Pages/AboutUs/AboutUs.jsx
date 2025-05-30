@@ -12,7 +12,7 @@ import BannerHero from "@/Components/Hero/BannerHero";
 const AboutUs = () => {
     return (
         <Layout title="Sobre nosotros">
-            <BannerHero img="/img/about/BANNER-ABOUT-US.WEBP" title="PARQUE BRINCAESTE" />
+            <BannerHero img="/img/about/BANNER-ABOUT-US.png" title="PARQUE BRINCAESTE" />
             <div className="bg-gray-100">
                 <Section1 />
                 <Section2 />

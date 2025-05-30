@@ -28,7 +28,7 @@ const birthday = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/about/plan basico.webp"
+                        src="/img/about/plan basico.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
@@ -94,7 +94,7 @@ const birthday = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/about/Plan VIP.webp"
+                        src="/img/about/Plan VIP.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />

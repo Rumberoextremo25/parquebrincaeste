@@ -4,7 +4,7 @@ import TitleSection from "@/Components/TitleSection";
 
 const Section2 = () => {
 	return (
-		<div className=" lg:bg-transparent lg:bg-[url('/img/about/BANNER-ABOUT-US.webp')] lg:bg-[length:85%]  lg:bg-left  lg:bg-no-repeat">
+		<div className=" lg:bg-transparent lg:bg-[url('/img/about/BANNER-ABOUT-US.png')] lg:bg-[length:85%]  lg:bg-left  lg:bg-no-repeat">
 			<div className="py-section container ">
 				<div className=" grid lg:grid-cols-12">
 					<div className="rounded lg:col-span-8 lg:col-start-5 lg:bg-gray-50   lg:p-8">
