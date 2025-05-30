@@ -20,7 +20,7 @@ const Stand = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/stand/IMG_2756.jpg"
+                        src="/img/stand/IMG_2756.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
@@ -30,7 +30,7 @@ const Stand = () => {
             <div className="grid gap-24 lg:grid-cols-2">
             <div className="hidden lg:block">
                     <img
-                        src="/img/stand/Fantasy.jpg"
+                        src="/img/stand/Fantasy.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
@@ -56,7 +56,7 @@ const Stand = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/stand/IMG_2751.jpg"
+                        src="/img/stand/IMG_2751.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
@@ -66,7 +66,7 @@ const Stand = () => {
             <div className="grid gap-24 lg:grid-cols-2">
             <div className="hidden lg:block">
                     <img
-                        src="/img/stand/Proximamente.png"
+                        src="/img/stand/brincaburger.png"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
@@ -75,7 +75,7 @@ const Stand = () => {
                 <strong><h5>Brinca Burguer</h5></strong>
                     <div className="mt-4 space-y-6 ">
                         <p className="text">
-                            *  PROXIMAMENTE !!. 
+                            *  Disfruta de las deliciosas hamburguesas que te ofrecemos en Brinca Burger, el mejor sabor y sazon. 
                         </p>
                     </div>
                 </div>
