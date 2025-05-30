@@ -23,7 +23,7 @@ const Package = () => {
                         <tr className="hover:bg-gray-100 transition duration-300">
                             <td className="p-4">
                                 <img
-                                    src="/img/paquetes/planbasico.png"
+                                    src="/img/paquetes/planbasico.PNG"
                                     alt=""
                                     className="w-64 h-64 object-cover"
                                 />
@@ -56,7 +56,7 @@ const Package = () => {
                         <tr className="hover:bg-gray-100 transition duration-300">
                             <td className="p-4">
                                 <img
-                                    src="/img/paquetes/IMG_7017.png"
+                                    src="/img/paquetes/IMG_7017.PNG"
                                     alt=""
                                     className="w-64 h-64 object-cover"
                                 />
@@ -89,7 +89,7 @@ const Package = () => {
                         <tr className="hover:bg-gray-100 transition duration-300">
                             <td className="p-4">
                                 <img
-                                    src="/img/paquetes/IMG_7019.png"
+                                    src="/img/paquetes/IMG_7019.PNG"
                                     alt=""
                                     className="w-64 h-64 object-cover"
                                 />
@@ -124,7 +124,7 @@ const Package = () => {
                         <tr className="hover:bg-gray-100 transition duration-300">
                             <td className="p-4">
                                 <img
-                                    src="/img/paquetes/IMG_7145.png"
+                                    src="/img/paquetes/IMG_7145.PNG"
                                     alt=""
                                     className="w-64 h-64 object-cover"
                                 />
@@ -154,7 +154,7 @@ const Package = () => {
                         <tr className="hover:bg-gray-100 transition duration-300">
                             <td className="p-4">
                                 <img
-                                    src="/img/paquetes/IMG_4416.png"
+                                    src="/img/paquetes/IMG_4416.PNG"
                                     alt=""
                                     className="w-64 h-64 object-cover"
                                 />
