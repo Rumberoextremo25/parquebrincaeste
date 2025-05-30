@@ -13,11 +13,10 @@ class CheckoutController extends Controller
 {
     public function index(Request $request)
     {
-        // Obtener el usuario autenticado
         $user = $request->user();
 
-        // Obtener items del carrito desde la base de datos
-        $cartItems = Cart::where('user_id', $user->id)->with('product')->get();
+        // Obtener los items del carrito desde la sesión
+        $cartItems = session()->get('cartItems', []);
 
         return Inertia::render('Checkout/Checkout', [
             'cartItems' => $cartItems,
