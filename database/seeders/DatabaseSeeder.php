@@ -20,7 +20,8 @@ class DatabaseSeeder extends Seeder
         //dd(EventTypes::Event->value);
         Schema::disableForeignKeyConstraints();
         $this->call([
-            UserSeeder::class
+            UserSeeder::class,
+            ProductsSeeder::class
 
 
         ]);

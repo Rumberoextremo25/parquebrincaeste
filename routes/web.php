@@ -26,10 +26,8 @@ use App\Http\Controllers\ProductController;
 
 Route::get('/', [PageController::class, 'home'])->name('home');
 Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
-Route::get('/cart', [ShoppingCartController::class, 'index'])->name('cart.index');
+Route::post('/tienda/comprar', [TiendaController::class, 'comprar'])->name('tienda.comprar')->middleware('auth');
 
-// Para aceptar GET o POST
-Route::match(['get', 'post'], '/checkout', [CheckoutController::class, 'index']);
 // Ruta para procesar el checkout
 Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');

@@ -4,7 +4,7 @@ import Layout from "@/Layouts/Layout";
 import BannerHero from "@/Components/Hero/BannerHero";
 
 const Tienda = ({ precioInicial }) => {
-    const [cantidad, setCantidad] = useState(1);
+    const [cantidad, setCantidad] = useState('');
     const [fecha, setFecha] = useState('');
     const [hora, setHora] = useState('');
     const [tipoTicket, setTipoTicket] = useState('');
@@ -13,7 +13,6 @@ const Tienda = ({ precioInicial }) => {
     const [cantidadMedias, setCantidadMedias] = useState('');
     const [tallaMedias, setTallaMedias] = useState('');
     const [precioMedias] = useState(2);
-    const [mensaje, setMensaje] = useState('');
 
     useEffect(() => {
         if (fecha) {
@@ -41,7 +40,7 @@ const Tienda = ({ precioInicial }) => {
         const total = (precio * cantidad) + totalMedias;
 
         // Reinicia los estados
-        setCantidad(1);
+        setCantidad('');
         setFecha('');
         setHora('');
         setTipoTicket('');
@@ -52,8 +51,11 @@ const Tienda = ({ precioInicial }) => {
         // Redirigir a la página de checkout
         Inertia.visit('/checkout', {
             method: 'POST',
-            data: data,
-          });
+            data: {
+                ...data,
+                total, // Puedes enviar el total si es necesario
+            },
+        });
     };
 
     return (
@@ -156,7 +158,6 @@ const Tienda = ({ precioInicial }) => {
                             Comprar
                         </button>
                     </form>
-                    {mensaje && <p className="p-4 text-green-600">{mensaje}</p>}
                 </div>
             </div>
         </Layout>
