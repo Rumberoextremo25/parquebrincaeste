@@ -26,7 +26,6 @@ use App\Http\Controllers\ProductController;
 
 Route::get('/', [PageController::class, 'home'])->name('home');
 Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
-Route::post('/tienda/comprar', [TiendaController::class, 'comprar'])->name('tienda.comprar')->middleware('auth');
 
 // Ruta para procesar el checkout
 Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
