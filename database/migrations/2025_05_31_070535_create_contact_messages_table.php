@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('gastos', function (Blueprint $table) {
+        Schema::create('contact_messages', function (Blueprint $table) {
             $table->id();
-            // Agrega aquí los campos que necesitas, ejemplo:
-            $table->string('descripcion');
-            $table->decimal('monto', 10, 2);
-            $table->date('fecha');
+            $table->string('name');
+            $table->string('phone');
+            $table->string('email');
+            $table->string('subject');
+            $table->text('message');
             $table->timestamps();
         });
     }
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('gastos');
+        Schema::dropIfExists('contact_messages');
     }
 };

@@ -63,6 +63,7 @@ canvas {
 <div class="container my-5">  
     <h1 class="text-center text-primary mb-4">Finanzas</h1>  
     <div class="row">  
+        <!-- Resumen Financiero -->
         <div class="col-md-6">  
             <div class="card shadow-lg border-light rounded">  
                 <div class="card-header bg-primary text-white text-center">  
@@ -84,6 +85,8 @@ canvas {
                 </div>  
             </div>  
         </div>  
+
+        <!-- Gráficos Financieros -->
         <div class="col-md-6">  
             <div class="card shadow-lg border-light rounded">  
                 <div class="card-header bg-success text-white text-center">  
@@ -91,25 +94,65 @@ canvas {
                 </div>  
                 <div class="card-body">  
                     <canvas id="finanzasChart"></canvas>  
-                </div>  
+                </div>
+                <div class="card-body">  
+                    <canvas id="beneficioChart"></canvas>  
+                </div>
             </div>  
-        </div>  
+        </div>
     </div>  
 </div>  
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  
 <script>
-    const ctx = document.getElementById('finanzasChart').getContext('2d');
-    const finanzasChart = new Chart(ctx, {
+    // Gráfico de Ventas por Mes
+    const ctxVentas = document.getElementById('finanzasChart').getContext('2d');
+    const finanzasChart = new Chart(ctxVentas, {
         type: 'bar',
         data: {
-            labels: {!! json_encode($meses) !!},
+            labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Sept', 'Oct', 'Nov', 'Dic'],
             datasets: [{
                 label: 'Ventas por Mes',
-                data: {!! json_encode($ventasData) !!},
+                data: [12000, 15000, 13000, 17000, 20000, 18000, 16000, 21000, 19000, 22000, 24000, 20000], // datos estáticos
                 backgroundColor: 'rgba(75, 192, 192, 0.5)',
                 borderColor: 'rgba(75, 192, 192, 1)',
                 borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Monto ($)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Meses'
+                    }
+                }
+            }
+        }
+    });
+
+    // Gráfico estático de Beneficio Neto por mes
+    const ctxBeneficio = document.getElementById('beneficioChart').getContext('2d');
+    const beneficioChart = new Chart(ctxBeneficio, {
+        type: 'line',
+        data: {
+            labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Sept', 'Oct', 'Nov', 'Dic'],
+            datasets: [{
+                label: 'Beneficio Neto por Mes',
+                data: [5000, 7000, 6000, 8000, 10000, 9000, 8500, 11000, 10500, 11500, 12500, 10000], // datos estáticos
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
             }]
         },
         options: {

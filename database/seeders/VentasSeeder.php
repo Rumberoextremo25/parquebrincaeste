@@ -3,44 +3,44 @@
 namespace Database\Seeders;  
 
 use Illuminate\Database\Seeder;  
-use Illuminate\Support\Facades\DB;  
-use App\Models\Cliente; // Importa el modelo Cliente  
-use App\Models\Product; // Importa el modelo Producto  
+use Illuminate\Support\Facades\DB; 
+use App\Models\Product; // Importa el modelo Producto
 
-class VentasSeeder extends Seeder  
-{  
-    public function run()  
-    {  
-        // Obtener todos los clientes y productos para relacionarlos  
-        $clientes = Cliente::all();  
-        $productos = Product::all();  
+class VentasSeeder extends Seeder
+{
+    public function run()
+    {
+        // Obtener todos los productos y facturas existentes
+        $productos = Product::all();
+        $facturas = \App\Models\Factura::all();
 
-        if ($clientes->isEmpty() || $productos->isEmpty()) {  
-            $this->command->warn('Asegúrate de que hay clientes y productos en la base de datos antes de ejecutar este seeder.');  
-            return;  
-        }  
+        if ($productos->isEmpty() || $facturas->isEmpty()) {
+            $this->command->warn('Asegúrate de que hay productos y facturas en la base de datos antes de correr este seeder.');
+            return;
+        }
 
-        // Crear datos de ejemplo para la tabla ventas  
-        $ventas = [];  
-        foreach (range(1, 10) as $index) {  
-            $cantidad = rand(1, 5); // Cantidad aleatoria entre 1 y 5  
-            $precio_unitario = rand(10, 100); // Precio unitario aleatorio entre 10 y 100  
-            $total = $cantidad * $precio_unitario; // Calculo del total  
+        $ventas = [];
 
-            $ventas[] = [  
-                'cliente_id' => $clientes->random()->id, // Escoge un cliente aleatorio  
-                'producto_id' => $productos->random()->id, // Escoge un producto aleatorio  
-                'cantidad' => $cantidad,  
-                'precio_unitario' => $precio_unitario,  
-                'monto' => $total, // Guardamos el monto directamente  
-                'total' => $total, // También guardamos el total  
-                'fecha_venta' => now(), // Fecha de la venta  
-                'created_at' => now(),  
-                'updated_at' => now(),  
-            ];  
-        }  
+        for ($i = 0; $i < 20; $i++) { // genera 20 ventas
+            $cantidad = rand(1, 10);
+            $producto = $productos->random();
+            $factura = $facturas->random();
 
-        // Insertar los datos en la tabla ventas  
-        DB::table('ventas')->insert($ventas);  
-    }  
+            // Valor por defecto en caso de null
+            $monto = $producto->precio ?? 10;
+            $total = $cantidad * $monto;
+
+            $ventas[] = [
+                'factura_id' => $factura->id,
+                'producto_id' => $producto->id,
+                'cantidad' => $cantidad,
+                'monto' => $total, // Aquí asignamos el monto total
+                'fecha' => now()->format('Y-m-d'), // Fecha actual en formato Y-m-d
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        DB::table('ventas')->insert($ventas);
+    }
 }

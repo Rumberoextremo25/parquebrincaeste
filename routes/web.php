@@ -2,10 +2,9 @@
 use Inertia\Inertia;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\TiendaController;
-use App\Http\Controllers\Pages\ContactUsController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Pages\PageController;
 use App\Http\Controllers\Profile\ProfileController;
-use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\ShoppingCartController;
@@ -61,8 +60,8 @@ Route::post('/update-dark-mode', [PageController::class, 'updateDarkMode'])->nam
 
 
 //Rutas del Controlador de Contacto
-Route::get('/contact-us', [ContactUsController::class, 'contact_us'])->name('contact_us');
-Route::post('/message-contact-us', [ContactUsController::class, 'save'])->name('contact_us.save');
+Route::get('/contact-us', [ContactController::class, 'contact_us'])->name('contact_us');
+Route::post('/contact-us/save', [ContactController::class, 'save'])->name('contact_us.save');
 
 //Rutas Controlador Newletters
 Route::post('/web/newsletter', [NewsletterController::class, 'subscribe']);

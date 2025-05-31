@@ -40,9 +40,6 @@ const Tienda = ({ precioInicial }) => {
         const totalMedias = (precioMedias * (cantidadMedias || 0));
         const total = (precio * cantidad) + totalMedias;
 
-        // Muestra el mensaje de confirmación
-        setMensaje(`Cantidad: ${cantidad}, Fecha: ${fecha}, Hora: ${hora}, Tipo de Ticket: ${tipoTicket}, Talla: ${talla}, Cantidad de Medias: ${cantidadMedias || 0}, Talla de Medias: ${tallaMedias || 'N/A'}, Precio Total: $${total}`);
-
         // Reinicia los estados
         setCantidad(1);
         setFecha('');

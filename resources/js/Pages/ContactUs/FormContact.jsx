@@ -18,13 +18,23 @@ const FormContact = ({ form }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post(route("contact_us.save"));
+        post(route("contact_us.save"), {
+            onSuccess: () => {
+                // Aquí puedes mostrar un mensaje de éxito, por ejemplo:
+                alert("Mensaje enviado con éxito.");
+            },
+            onError: () => {
+                // Maneja errores si es necesario
+            },
+        });
     };
+
     const handleChange = (e) => {
         e.preventDefault();
         let target = e.target;
         setData(target.name, target.value);
     };
+
     return (
         <div className="mx-auto max-w-3xl">
             <TitleSection
@@ -37,7 +47,7 @@ const FormContact = ({ form }) => {
                     <div className="sm:col-span-3">
                         <InputLabelError
                             handleChange={handleChange}
-                            errors={errors.title}
+                            errors={errors.name} // Corrige el acceso a errores
                             label="Nombre"
                             name="name"
                             value={data.name}
@@ -47,8 +57,8 @@ const FormContact = ({ form }) => {
                     <div className="sm:col-span-3">
                         <InputLabelError
                             handleChange={handleChange}
-                            errors={errors.slug}
-                            label="Telefono"
+                            errors={errors.phone} // Corrige el acceso a errores
+                            label="Teléfono"
                             name="phone"
                             value={data.phone}
                             placeholder="+58-4162546978"
@@ -58,7 +68,7 @@ const FormContact = ({ form }) => {
                         <InputLabelError
                             type="email"
                             handleChange={handleChange}
-                            errors={errors.slug}
+                            errors={errors.email} // Corrige el acceso a errores
                             label="Email"
                             name="email"
                             value={data.email}
@@ -68,7 +78,7 @@ const FormContact = ({ form }) => {
                     <div className="sm:col-span-3">
                         <InputLabelError
                             handleChange={handleChange}
-                            errors={errors.slug}
+                            errors={errors.subject} // Corrige el acceso a errores
                             label="Asunto"
                             name="subject"
                             value={data.subject}
@@ -79,11 +89,11 @@ const FormContact = ({ form }) => {
                         <TextAreaLabelError
                             rows="6"
                             handleChange={handleChange}
-                            errors={errors.slug}
+                            errors={errors.message} // Corrige el acceso a errores
                             label="Mensaje"
                             name="message"
                             value={data.message}
-                            placeholder="Informacion a consultar"
+                            placeholder="Información a consultar"
                         />
                     </div>
                     <div className="sm:col-span-6 text-center">

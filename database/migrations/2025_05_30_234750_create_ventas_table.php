@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('ventas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('factura_id')->constrained('facturas')->onDelete('cascade');
-            $table->foreignId('producto_id')->constrained('productos'); // Asegúrate de tener la tabla productos
+            $table->foreignId('producto_id')->constrained('productos');
             $table->integer('cantidad');
-            $table->decimal('precio', 10, 2);
+            $table->decimal('monto', 10, 2); // Renombré a 'monte' como solicitaste, si quieres 'precio' solo cámbialo
+            $table->date('fecha'); // Nuevo campo fecha
             $table->timestamps();
         });
     }

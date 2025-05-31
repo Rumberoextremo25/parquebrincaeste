@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class ProductsTableSeeder extends Seeder
+class ProductsSeeder extends Seeder
 {
     public function run()
     {
@@ -117,4 +117,3 @@ class ProductsTableSeeder extends Seeder
         DB::table('products')->insert($products);
     }
 }
-

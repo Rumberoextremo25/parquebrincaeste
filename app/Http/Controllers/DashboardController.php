@@ -6,10 +6,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
-use Carbon\Carbon;
 use App\Models\Venta;
-use App\Models\Gasto;
-use App\Models\Ticket;
 use App\Http\Controllers\Controller;
 use TCPDF;
 use App\Models\Finanza;
@@ -85,15 +82,9 @@ class DashboardController extends Controller
     public function Ventas()
     {
         $ventasDiarias = $this->obtenerVentasPorDia();
-        $ventasSemanales = $this->obtenerVentasPorSemana();
-        $ventasMensuales = $this->obtenerVentasPorMes();
-        $ventasAnuales = $this->obtenerVentasPorAnio();
 
         return view('ventas', compact(
             'ventasDiarias',
-            'ventasSemanales',
-            'ventasMensuales',
-            'ventasAnuales'
         ));
     }
 
@@ -101,31 +92,32 @@ class DashboardController extends Controller
 
     public function finanzas()
     {
-        // Obtener ventas del mes actual y año actual
-        $totalVentaMesActual = Venta::whereYear('fecha', date('Y'))
+        // Obtener ingresos del mes actual y año actual desde la tabla Ventas
+        $totalIngresoMesActual = Venta::whereYear('fecha', date('Y'))
             ->whereMonth('fecha', date('m'))
-            ->sum('monto');
+            ->sum('monto'); // Asumiendo que 'monto' es el campo que representa el ingreso en la tabla Ventas
 
-        // Guardar en la tabla Finanza solo la venta total del mes actual
+        // Guardar en la tabla Finanza solo el ingreso total del mes actual
         Finanza::create([
-            'ingreso' => $totalVentaMesActual,
+            'ingreso' => $totalIngresoMesActual,
             'gasto' => 0,
             'fecha' => now(),
-            'descripcion' => 'Ventas del mes ' . date('F Y'), //campo descripción
+            'descripcion' => 'Ingresos del mes ' . date('F Y'), // Campo descripción
         ]);
 
-        // El resto de tu código original si quieres mantenerlo
-        $ingresosTotales = Venta::sum('monto');
-        $gastosTotales = Gasto::sum('monto');
+        // Cálculo de ingresos totales y gastos totales
+        $ingresosTotales = Finanza::sum('ingreso');
+        $gastosTotales = Finanza::sum('gasto'); // Asegúrate de que esto se ajuste a tu lógica
         $beneficioNeto = $ingresosTotales - $gastosTotales;
 
-        $ventasPorMes = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total')
+        // Obtener los ingresos por mes desde la tabla Ventas
+        $ingresosPorMes = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total') // Cambia 'monto' por el campo adecuado
             ->groupBy('mes')
             ->orderBy('mes')
             ->pluck('total', 'mes');
 
-        $ventasData = $ventasPorMes->values()->toArray();
-        $meses = $ventasPorMes->keys()->map(function ($mes) {
+        $ingresosData = $ingresosPorMes->values()->toArray();
+        $meses = $ingresosPorMes->keys()->map(function ($mes) {
             return date('F', mktime(0, 0, 0, $mes, 1));
         })->toArray();
 
@@ -133,10 +125,10 @@ class DashboardController extends Controller
             'ingresosTotales' => $ingresosTotales,
             'gastosTotales' => $gastosTotales,
             'beneficioNeto' => $beneficioNeto,
-            'ventasData' => $ventasData,
+            'ingresosData' => $ingresosData,
             'meses' => $meses,
-            'ventasMesActual' => $totalVentaMesActual,
-            'ventasMesAnterior' => null,
+            'ingresosMesActual' => $totalIngresoMesActual,
+            'ingresosMesAnterior' => null, // Puedes calcular el ingreso del mes anterior si lo deseas
         ]);
     }
 
@@ -148,61 +140,28 @@ class DashboardController extends Controller
 
     private function obtenerVentasPorDia()
     {
-        $ventasPorDia = Venta::selectRaw('DATE(fecha) as dia, SUM(monto) as total')
-            ->groupBy('dia')
-            ->orderBy('dia')
-            ->get();
+        $totalDiaActual = Venta::whereDate('fecha', date('Y-m-d'))
+            ->sum('monto');
 
-        // Sumatoria total
-        return $ventasPorDia->sum('total');
+        return $totalDiaActual;
     }
 
     // Datos de ventas por semana
-    private function obtenerVentasPorSemana()
-    {
-        $ventasPorSemana = Venta::selectRaw('WEEK(fecha) as semana, YEAR(fecha) as anio, SUM(monto) as total')
-            ->groupBy('anio', 'semana')
-            ->orderBy('anio')
-            ->orderBy('semana')
-            ->get();
-
-        return $ventasPorSemana->sum('total');
-    }
 
     // Datos de ventas por mes
-    private function obtenerVentasPorMes()
-    {
-        $ventasPorMes = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total')
-            ->groupBy('mes')
-            ->orderBy('mes')
-            ->get();
-
-        return $ventasPorMes->sum('total');
-    }
 
     // Datos de ventas por año
-    private function obtenerVentasPorAnio()
-    {
-        $ventasPorAnio = Venta::selectRaw('YEAR(fecha) as anio, SUM(monto) as total')
-            ->groupBy('anio')
-            ->orderBy('anio')
-            ->get();
-
-        return $ventasPorAnio->sum('total');
-    }
 
     //Logica para generar Reportes de Ventas Y Finanzas
 
     public function generarPDFVentas()
     {
-        // Crear una nueva instancia de TCPDF
         $pdf = new TCPDF();
 
-        // Configuración del PDF
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor('Brinca Este 24 C.A');
         $pdf->SetTitle('Reporte de Ventas');
-        $pdf->SetHeaderData('', 0, 'Reporte de Ventas', 'Generado por Tu Aplicación');
+        $pdf->SetHeaderData('', 0, 'Reporte de Ventas', 'Brinca Este');
         $pdf->setHeaderFont(array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
         $pdf->setFooterFont(array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
         $pdf->SetMargins(10, 10, 10);
@@ -212,24 +171,36 @@ class DashboardController extends Controller
         // Obtener los datos de las ventas
         $ventas = Venta::all();
 
-        // Generar contenido HTML para el reporte de ventas
+        // Encabezados de la tabla
         $html = '<h1>Reporte de Ventas</h1>';
-        $html .= '<table border="1" cellpadding="4"><tr><th>ID</th><th>Producto</th><th>Monto</th><th>Fecha</th></tr>';
+        $html .= '<table border="1" cellpadding="4"><tr>';
+        $html .= '<th>ID</th>';
+        $html .= '<th>Producto</th>';   // Solo el nombre del producto
+        $html .= '<th>monto</th>';
+        $html .= '<th>Cantidad</th>';
+        $html .= '<th>Fecha</th>';
+        $html .= '</tr>';
+
+        // Filas con datos
         foreach ($ventas as $venta) {
+            // Decodificar el JSON del campo producto
+            $productoArray = json_decode($venta->producto, true);
+            // Obtener solo el nombre o un valor por defecto si no existe
+            $nombreProducto = $productoArray && isset($productoArray['name']) ? $productoArray['name'] : '';
+
             $html .= '<tr>';
             $html .= '<td>' . $venta->id . '</td>';
-            $html .= '<td>' . $venta->producto . '</td>';
+            $html .= '<td>' . $nombreProducto . '</td>'; // Mostrar solo el nombre
             $html .= '<td>' . $venta->monto . '</td>';
+            $html .= '<td>' . $venta->cantidad . '</td>';
             $html .= '<td>' . $venta->fecha . '</td>';
             $html .= '</tr>';
         }
+
         $html .= '</table>';
 
-        // Escribir el contenido HTML en el PDF
         $pdf->writeHTML($html, true, false, true, false, '');
-
-        // Cerrar y generar el PDF
-        $pdf->Output('reporte_ventas.pdf', 'I'); // 'I' para mostrar en el navegador
+        $pdf->Output('reporte_ventas.pdf', 'I'); // Mostrar en navegador
     }
 
     public function obtenerUsuariosYVisitantes()

@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
-use GuzzleHttp\Client;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
 use Database\Seeders\ClientesTableSeeder;
+use Database\Seeders\FacturasSeeder as SeedersFacturasSeeder;
+use Database\Seeders\VentasSeeder as SeedersVentasSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -20,10 +21,12 @@ class DatabaseSeeder extends Seeder
         Schema::disableForeignKeyConstraints();
         $this->call([
             UserSeeder::class,
-            ProductsTableSeeder::class,
+            ProductsSeeder::class,
             FinanzasSeeder::class,
-            VentasSeeder::class,
+            SeedersFacturasSeeder::class,
             ClientesTableSeeder::class,
+            SeedersVentasSeeder::class
+
 
         ]);
         Schema::enableForeignKeyConstraints();

@@ -71,30 +71,6 @@ h1 {
                 </div>  
             </div>  
         </div>  
-        <div class="col-md-3">  
-            <div class="card shadow-lg border-light rounded">  
-                <div class="card-body bg-gradient-primary text-white">  
-                    <h2 class="card-title">Ventas Semanales</h2>  
-                    <p class="card-text display-4">{{ $ventasSemanales }}</p>  
-                </div>  
-            </div>  
-        </div>  
-        <div class="col-md-3">  
-            <div class="card shadow-lg border-light rounded">  
-                <div class="card-body bg-gradient-warning text-dark">  
-                    <h2 class="card-title">Ventas Mensuales</h2>  
-                    <p class="card-text display-4">{{ $ventasMensuales }}</p>  
-                </div>  
-            </div>  
-        </div>  
-        <div class="col-md-3">  
-            <div class="card shadow-lg border-light rounded">  
-                <div class="card-body bg-gradient-info text-white">  
-                    <h2 class="card-title">Ventas Anuales</h2>  
-                    <p class="card-text display-4">{{ $ventasAnuales }}</p>  
-                </div>  
-            </div>  
-        </div>  
     </div>  
 
     <div class="row">  
