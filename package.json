@@ -42,7 +42,7 @@
         "react-slick": "^0.30.3",
         "react-trix": "^0.10.2",
         "slick-carousel": "^1.8.1",
-        "sweetalert2": "^11.19.1",
+        "sweetalert2": "^11.22.0",
         "swiper": "^10.1.0"
     }
 }

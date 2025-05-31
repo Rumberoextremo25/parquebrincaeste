@@ -26,23 +26,15 @@ use App\Http\Controllers\ProductController;
 */
 
 Route::get('/', [PageController::class, 'home'])->name('home');
-
 Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
-
 Route::get('/cart', [ShoppingCartController::class, 'index'])->name('cart.index');
 
 // Para aceptar GET o POST
 Route::match(['get', 'post'], '/checkout', [CheckoutController::class, 'index']);
-
 // Ruta para procesar el checkout
 Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/success', [CheckoutController::class, 'success'])->name('success');
-
-//Rutas para el controlador de medios de pago
-Route::get('/payment', [PaymentController::class, 'index'])->name('payment.index');
-Route::post('/payment', [PaymentController::class, 'processPayment'])->name('payment.process');
-
 
 // Rutas para el controlador de facturas
 Route::get('/invoice/{id}', [InvoiceController::class, 'show'])->name('invoice.show');

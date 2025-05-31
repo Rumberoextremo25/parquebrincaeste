@@ -6,36 +6,30 @@ use Illuminate\Http\Request;
 use App\Models\Subscriber;  
 use Illuminate\Support\Facades\Validator;  
 use App\Mail\NewsletterSubscribed; // Asegúrate de incluir el Mailable  
-use Illuminate\Support\Facades\Mail; // Importa la clase Mail  
+use Illuminate\Support\Facades\Mail; // Importa la clase Mail
 
-class NewsletterController extends Controller  
-{  
-    public function subscribe(Request $request)  
-    {  
-        // Validar la solicitud  
-        $validator = Validator::make($request->all(), [  
-            'email' => 'required|email|unique:subscribers,email',  
-        ]);  
+class NewsletterController extends Controller
+{
+    public function subscribe(Request $request)
+    {
+        // Validar el email
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email|unique:subscribers,email',
+        ]);
 
-        if ($validator->fails()) {  
-            return response()->json([  
-                'message' => $validator->errors()->first(),  
-                'success' => false,  
-            ], 422);  
-        }  
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
 
-        // Crear el nuevo suscriptor  
-        $subscriber = Subscriber::create(['email' => $request->email]);
-        
-        // Añade esto justo antes del envío del correo en el NewsletterController  
-        dd('Listo para enviar el correo a: '.$subscriber->email);
+        // Crear el suscriptor
+        $subscriber = Subscriber::create([
+            'email' => $request->email,
+        ]);
 
-        // Enviar el correo al nuevo suscriptor  
-        Mail::to($subscriber->email)->send(new NewsletterSubscribed($subscriber->email));  
+        // Enviar el correo de confirmación
+        Mail::to($subscriber->email)->send(new NewsletterSubscribed($subscriber->email));
 
-        return response()->json([  
-            'message' => '¡Gracias por suscribirte!',  
-            'success' => true,  
-        ]);  
-    }  
+        // Redirigir con un mensaje de éxito
+        return redirect()->back()->with('success', '¡Gracias por suscribirte! Te hemos enviado un correo de confirmación.');
+    }
 }
