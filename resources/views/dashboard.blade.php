@@ -4,33 +4,35 @@
 
 @section('content')
 <div class="container mt-5">
-  <h1 class="text-center mb-4">Dashboard</h1>
-  <div class="row">
-    <div class="col-6 col-md-3">
-      <div class="card text-white bg-info mb-3 shadow-sm border-0 hover-shadow">
-        <div class="card-header text-center font-weight-bold">Usuarios</div>
-        <div class="card-body text-center">
-          <h5 class="card-title display-5">150</h5>
-          <p class="card-text text-success font-weight-bold">+20%</p>
+    <h1 class="text-center mb-4">Dashboard</h1>
+    
+    <div class="row">
+        <div class="col-6 col-md-3">
+            <div class="card text-white bg-info mb-3 shadow-sm border-0 hover-shadow">
+                <div class="card-header text-center font-weight-bold">Usuarios</div>
+                <div class="card-body text-center">
+                    <h5 class="card-title display-5">150</h5>
+                    <p class="card-text text-success font-weight-bold">+20%</p>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card text-white bg-danger mb-3 shadow-sm border-0 hover-shadow">
-        <div class="card-header text-center font-weight-bold">Visitantes</div>
-        <div class="card-body text-center">
-          <h5 class="card-title display-5">400+</h5>
-          <p class="card-text text-success font-weight-bold">+5%</p>
+        
+        <div class="col-6 col-md-3">
+            <div class="card text-white bg-danger mb-3 shadow-sm border-0 hover-shadow">
+                <div class="card-header text-center font-weight-bold">Visitantes</div>
+                <div class="card-body text-center">
+                    <h5 class="card-title display-5">400+</h5>
+                    <p class="card-text text-success font-weight-bold">+5%</p>
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
 
-  <div class="row">
-    <div class="col-12">
-      <canvas id="visitorChart" height="250"></canvas>
+    <div class="row">
+        <div class="col-12">
+            <canvas id="visitorChart" height="250"></canvas>
+        </div>
     </div>
-  </div>
 </div>
 
 <style>

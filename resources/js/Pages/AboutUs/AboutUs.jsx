@@ -13,15 +13,18 @@ const AboutUs = () => {
     return (
         <Layout title="Sobre nosotros">
             <BannerHero img="/img/about/BANNER-ABOUT-US.png" title="PARQUE BRINCAESTE" />
+
             <div className="bg-gray-100">
                 <Section1 />
                 <Section2 />
                 <Section3 />
             </div>
+
             <div className="bg-gray-100">
                 <Gallery />
             </div>
-            <Birthday/>
+
+            <Birthday />
         </Layout>
     );
 };

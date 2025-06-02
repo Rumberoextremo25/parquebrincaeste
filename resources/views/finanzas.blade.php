@@ -62,6 +62,7 @@ canvas {
 @section('content')  
 <div class="container my-5">  
     <h1 class="text-center text-primary mb-4">Finanzas</h1>  
+    
     <div class="row">  
         <!-- Resumen Financiero -->
         <div class="col-md-6">  

@@ -55,15 +55,16 @@ h1 {
 
 @section('content')  
 <div class="container mt-5">
-    <div class="row text-center mt-4 ">  
+    <div class="row text-center mt-4">  
         <div class="col-md-12 text-right">  
             <a href="{{ route('ventas.pdf') }}" class="btn btn-danger btn-lg" target="_blank">Ver Ventas en PDF</a>  
         </div>  
     </div>  
+    
     <h1 class="text-center mb-4 text-primary">Finanzas</h1>  
     
     <div class="row text-center mb-4">  
-        <div class="col-md-3">  
+        <div class="col-sm-6 col-md-4 col-lg-3">  
             <div class="card shadow-lg border-light rounded">  
                 <div class="card-body bg-gradient-success text-white">  
                     <h2 class="card-title">Ventas Diarias</h2>  
@@ -71,12 +72,13 @@ h1 {
                 </div>  
             </div>  
         </div>  
+        <!-- Puedes agregar más tarjetas aquí si es necesario -->
     </div>  
 
     <div class="row">  
         <div class="col-md-12">  
             <h2 class="text-center mb-4">Gráficos de Ventas</h2>  
-            <canvas id="ventasChart"></canvas>  
+            <canvas id="ventasChart" class="w-100"></canvas>  
         </div>  
     </div> 
 </div>  

@@ -8,80 +8,66 @@ const Stand = () => {
         <Layout>
             <BannerHero title="FERIA DE COMIDA" />
             <div className="py-section container">
-            <div className="grid gap-24 lg:grid-cols-2">
-                <div>
-                    <strong><h5>BRINCA MANIA</h5></strong>
-                    <p className="mt-4 space-y-6 ">
-                        Descubre los sabores de Brinca Manía, donde cada bocado es una aventura. Desde pizzas y perros calientes hasta cotufas y helados, pasando por donas, algodón de azúcar, nuggets, tequeños y papas fritas. ¡Ven y disfruta de nuestras delicias culinarias!
-                    </p>
-                    <p className='mt-4 space-y-6'>
-                        Tambien endulza tu día en el paraíso de las golosinas. Descubre nuestra selección de chucherías, gomitas, y bolsas de papitas crujientes. ¡Un festín de sabores y diversión te espera en cada visita!
-                    </p>
-                </div>
-                <div className="hidden lg:block">
-                    <img
-                        src="/img/stand/IMG_2756.png"
-                        alt=""
-                        className="object-lefts h-full object-cover"
-                    />
-                </div>
-            </div>
-            <br></br>
-            <div className="grid gap-24 lg:grid-cols-2">
-            <div className="hidden lg:block">
-                    <img
-                        src="/img/stand/Fantasy.png"
-                        alt=""
-                        className="object-lefts h-full object-cover"
-                    />
-                </div>
-                <div>
-                <strong><h5>DISNEY FANTASY</h5></strong>
-                    <div className="mt-4 space-y-6 ">
-                        <p className="text">
-                            Vive la magia de disney con los increibles bolsos y morrales del maravilloso mundo de disney!. 
-                        </p>
+                {[
+                    {
+                        title: "BRINCA MANIA",
+                        description: "Descubre los sabores de Brinca Manía, donde cada bocado es una aventura. Desde pizzas y perros calientes hasta cotufas y helados, pasando por donas, algodón de azúcar, nuggets, tequeños y papas fritas. ¡Ven y disfruta de nuestras delicias culinarias!",
+                        additional: "También endulza tu día en el paraíso de las golosinas. Descubre nuestra selección de chucherías, gomitas, y bolsas de papitas crujientes. ¡Un festín de sabores y diversión te espera en cada visita!",
+                        imgSrc: "/img/stand/IMG_2756.png",
+                        imgAlt: "Brinca Manía",
+                        isImageFirst: true
+                    },
+                    {
+                        title: "DISNEY FANTASY",
+                        description: "Vive la magia de Disney con los increíbles bolsos y morrales del maravilloso mundo de Disney.",
+                        imgSrc: "/img/stand/Fantasy.png",
+                        imgAlt: "Disney Fantasy",
+                        isImageFirst: false
+                    },
+                    {
+                        title: "DUTCH PANCAKES",
+                        description: "Deléitate en Dutch Pancakes con nuestros irresistibles pancakes, perfectos para cualquier momento del día. Acompáñalos con nuestros aromáticos cafés o refrescantes smoothies.",
+                        imgSrc: "/img/stand/IMG_2751.png",
+                        imgAlt: "Dutch Pancakes",
+                        isImageFirst: true
+                    },
+                    {
+                        title: "Brinca Burger",
+                        description: "Disfruta de las deliciosas hamburguesas que te ofrecemos en Brinca Burger, el mejor sabor y sazón.",
+                        imgSrc: "/img/stand/brincaburger.png",
+                        imgAlt: "Brinca Burger",
+                        isImageFirst: false
+                    }
+                ].map((stand, index) => (
+                    <div key={index} className="grid gap-24 lg:grid-cols-2">
+                        {stand.isImageFirst && (
+                            <div className="hidden lg:block">
+                                <img
+                                    src={stand.imgSrc}
+                                    alt={stand.imgAlt}
+                                    className="object-lefts h-full object-cover"
+                                />
+                            </div>
+                        )}
+                        <div>
+                            <strong><h5>{stand.title}</h5></strong>
+                            <div className="mt-4 space-y-6">
+                                <p className="text">{stand.description}</p>
+                                {stand.additional && <p className="text">{stand.additional}</p>}
+                            </div>
+                        </div>
+                        {!stand.isImageFirst && (
+                            <div className="hidden lg:block">
+                                <img
+                                    src={stand.imgSrc}
+                                    alt={stand.imgAlt}
+                                    className="object-lefts h-full object-cover"
+                                />
+                            </div>
+                        )}
                     </div>
-                </div>
+                ))}
             </div>
-            <br></br>
-            <div className="grid gap-24 lg:grid-cols-2">
-                <div>
-                <strong><h5>DUTCH PANCAKES</h5></strong>
-                    <div className="mt-4 space-y-6 ">
-                        <p className="text">
-                            * Deléitate en Dutch Pancakes con nuestros irresistibles pancakes, perfectos para cualquier momento del día. Acompáñalos con nuestros aromáticos cafés o refrescantes smoothies..
-                        </p>
-                    </div>
-                </div>
-                <div className="hidden lg:block">
-                    <img
-                        src="/img/stand/IMG_2751.png"
-                        alt=""
-                        className="object-lefts h-full object-cover"
-                    />
-                </div>
-            </div>
-            <br></br>
-            <div className="grid gap-24 lg:grid-cols-2">
-            <div className="hidden lg:block">
-                    <img
-                        src="/img/stand/brincaburger.png"
-                        alt=""
-                        className="object-lefts h-full object-cover"
-                    />
-                </div>
-                <div>
-                <strong><h5>Brinca Burguer</h5></strong>
-                    <div className="mt-4 space-y-6 ">
-                        <p className="text">
-                            *  Disfruta de las deliciosas hamburguesas que te ofrecemos en Brinca Burger, el mejor sabor y sazon. 
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <br></br>
-        </div>
         </Layout>
     )
 }

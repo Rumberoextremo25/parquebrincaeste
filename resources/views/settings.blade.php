@@ -96,25 +96,21 @@ body {
 
                         <div class="border-t border-gray-200 pt-6">
                             <h4 class="text-lg font-semibold text-gray-700 mb-3">{{ __('Opciones de Seguridad') }}</h4>
-                            <form action="{{ route('settings.update') }}" method="POST">
-                                @csrf
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center">
-                                        <label for="two_factor" class="inline-flex relative items-center cursor-pointer">
-                                            <input type="checkbox" id="two_factor" name="two_factor" class="sr-only peer" {{ auth()->user()->two_factor_enabled ? 'checked' : '' }}>
-                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
-                                        </label>
-                                        <label for="two_factor" class="ml-3 block text-sm text-gray-700">
-                                            {{ __('Activar Autenticación en Dos Pasos') }}
-                                        </label>
-                                    </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <label for="two_factor" class="inline-flex relative items-center cursor-pointer">
+                                        <input type="checkbox" id="two_factor" name="two_factor" class="sr-only peer" {{ auth()->user()->two_factor_enabled ? 'checked' : '' }}>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                                    </label>
+                                    <label for="two_factor" class="ml-3 block text-sm text-gray-700">
+                                        {{ __('Activar Autenticación en Dos Pasos') }}
+                                    </label>
                                 </div>
-                                <p class="mt-2 text-sm text-gray-500">{{ __('Aumenta la seguridad de tu cuenta.') }}</p>
-                                <button type="submit" class="mt-4 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-md hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600">
-                                    {{ __('Guardar Cambios') }}
-                                </button>
-                                <br>
-                            </form>
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">{{ __('Aumenta la seguridad de tu cuenta.') }}</p>
+                            <button type="submit" class="mt-4 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-md hover:bg-gradient-to-r hover:from-indigo-600 hover:to-purple-600">
+                                {{ __('Guardar Cambios') }}
+                            </button>
                         </div>
 
                         <div class="border-t border-gray-200 pt-6">
@@ -130,7 +126,6 @@ body {
                                     </label>
                                 </div>
                             </div>
-                            <br>
                         </div>
                     </form>
                 </div>
@@ -139,4 +134,22 @@ body {
     </div>
 </div>
 <script src="{{ asset('js/dark-mode.js') }}"></script>
+<script>
+    var document.addEventListener('DOMContentLoaded', function() {
+    const darkModeCheckbox = document.getElementById('dark_mode');
+    const body = document.body;
+
+    // Aplicar el modo oscuro inicial
+    if (darkModeCheckbox.checked) {
+        body.classList.add('dark');
+    } else {
+        body.classList.remove('dark');
+    }
+
+    // Escuchar el cambio en el checkbox
+    darkModeCheckbox.addEventListener('change', function() {
+        body.classList.toggle('dark');
+    });
+});
+</script>
 @endsection

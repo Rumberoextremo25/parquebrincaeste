@@ -66,7 +66,7 @@ const Checkout = ({ cartItems, user }) => {
 
             const data = await response.json();
             if (data.success) {
-                window.location.href = '/Checkout/Success'; 
+                window.location.href = '/Checkout/Success';
             } else {
                 throw new Error('Error en la respuesta del servidor.');
             }
@@ -97,13 +97,14 @@ const Checkout = ({ cartItems, user }) => {
                 return item;
             });
         });
-    };    
+    };
 
     return (
         <Layout>
             <BannerHero img="https://wallpaperbat.com/img/423222-eagle-mountain-sunset-minimalist-1366x768-resolution.jpg" title="Checkout" />
-            <div className="checkout-container" style={{ display: 'flex' }}>
-                <div className="checkout-form-container" style={{ flex: 1 }}>
+            <div className="checkout-container flex flex-wrap">
+
+                <div className="checkout-form-container flex-1 p-4">
                     {errorMessage && <div className="error-message">{errorMessage}</div>}
                     <form className="checkout-form" onSubmit={handleSubmit}>
                         <h2 className="section-title">Detalles del Cliente</h2>
@@ -155,38 +156,22 @@ const Checkout = ({ cartItems, user }) => {
                         {showMobilePaymentInfo && (
                             <div className="mobile-payment-info">
                                 <h3>Información de Pago Móvil</h3>
-                                <InputField
-                                    type="text"
-                                    name="nombre_banco"
-                                    label="Nombre del Banco"
-                                    value={formData.nombre_banco}
-                                    onChange={handleChange}
-                                    required
-                                />
-                                <InputField
-                                    type="tel"
-                                    name="numero_telefono"
-                                    label="Número de Teléfono"
-                                    value={formData.numero_telefono}
-                                    onChange={handleChange}
-                                    required
-                                />
-                                <InputField
-                                    type="text"
-                                    name="cedula"
-                                    label="Cédula"
-                                    value={formData.cedula}
-                                    onChange={handleChange}
-                                    required
-                                />
-                                <InputField
-                                    type="text"
-                                    name="clave_dinamica"
-                                    label="Clave Dinámica"
-                                    value={formData.clave_dinamica}
-                                    onChange={handleChange}
-                                    required
-                                />
+                                {['nombre_banco', 'numero_telefono', 'cedula', 'clave_dinamica'].map((field) => (
+                                    <InputField
+                                        key={field}
+                                        type={field === 'numero_telefono' ? 'tel' : 'text'}
+                                        name={field}
+                                        label={
+                                            field === 'nombre_banco' ? 'Nombre del Banco' :
+                                                field === 'numero_telefono' ? 'Número de Teléfono' :
+                                                    field === 'cedula' ? 'Cédula' :
+                                                        'Clave Dinámica'
+                                        }
+                                        value={formData[field]}
+                                        onChange={handleChange}
+                                        required
+                                    />
+                                ))}
                                 <InputField
                                     type="number"
                                     name="monto"
@@ -203,7 +188,7 @@ const Checkout = ({ cartItems, user }) => {
                     </form>
                 </div>
 
-                <div className="col-25" style={{ marginLeft: '20px' }}>
+                <div className="col-25 p-4" style={{ marginLeft: '20px' }}>
                     <div className="container">
                         <h4>Cart
                             <span className="price" style={{ color: 'black' }}>

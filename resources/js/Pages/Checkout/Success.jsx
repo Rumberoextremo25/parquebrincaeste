@@ -57,10 +57,10 @@ const Success = ({ paymentMethod }) => {
             <div className="flex justify-center items-center min-h-screen bg-gray-100">
                 <div className="bg-white shadow-lg rounded-lg p-8 max-w-md mx-auto">
                     <h1 className="text-2xl font-bold text-center text-gray-800">Compra Exitosa</h1>
-                    <p className="mt-4 text-center text-gray-600">Gracias por su compra, {customerName}.</p>
-                    <p className="mt-2 text-center text-gray-600">Su factura ID es: {invoiceId}</p>
-                    <p className="mt-2 text-center text-gray-600">Monto Total: ${amount}</p>
-                    <p className="mt-2 text-center text-gray-600">Fecha: {date}</p>
+                    <p className="mt-4 text-center text-gray-600">Gracias por su compra, <strong>{customerName}</strong>.</p>
+                    <p className="mt-2 text-center text-gray-600">Su factura ID es: <strong>{invoiceId}</strong></p>
+                    <p className="mt-2 text-center text-gray-600">Monto Total: <strong>${amount.toFixed(2)}</strong></p>
+                    <p className="mt-2 text-center text-gray-600">Fecha: <strong>{date}</strong></p>
                 </div>
             </div>
         </Layout>

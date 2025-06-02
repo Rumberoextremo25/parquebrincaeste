@@ -53,7 +53,7 @@ const Tienda = ({ precioInicial }) => {
         Inertia.visit('/checkout', {
             method: 'POST',
             data: data,
-          });
+        });
     };
 
     return (

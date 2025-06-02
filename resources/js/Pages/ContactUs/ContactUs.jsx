@@ -11,22 +11,23 @@ const ContactUs = () => {
     return (
         <Layout title="Contáctenos">
             <BannerHero title="CONTACTANOS" />
-            <div className='container'>
-                <div className=' py-section'>
+            <div className="container mx-auto p-4">
+
+                <div className="py-section">
                     <CardsInformation />
                 </div>
-                <iframe loading="lazy" className='w-full h-96'
+
+                <iframe
+                    loading="lazy"
+                    className="w-full h-96 my-4 rounded-lg shadow-md"
                     src="https://maps.google.com/maps?q=10.4913301,-66.8389512&hl=es;z=16&output=embed">
                 </iframe>
-            </div>
 
-            <div className='container'>
-                <div className=' py-section'>
-
+                <div className="py-section">
                     <FormContact />
                 </div>
-            </div>
 
+            </div>
         </Layout>
     )
 }

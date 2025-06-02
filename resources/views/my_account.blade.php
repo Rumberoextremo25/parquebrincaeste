@@ -57,8 +57,8 @@ body {
 @section('content')
 <div class="container mt-12 text-center">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+        <div class="col-md-6 mb-4">
+            <div class="bg-white shadow-xl rounded-lg overflow-hidden transition-transform transform hover:scale-105">
                 <div class="bg-gradient-to-r from-indigo-500 to-purple-500 py-4 px-6 border-b border-gray-200">
                     <h2 class="text-xl font-semibold text-white">{{ __('Actualizar Información') }}</h2>
                 </div>
@@ -80,8 +80,8 @@ body {
             </div>
         </div>
 
-        <div class="col-md-6">
-            <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+        <div class="col-md-6 mb-4">
+            <div class="bg-white shadow-xl rounded-lg overflow-hidden transition-transform transform hover:scale-105">
                 <div class="bg-gradient-to-r from-indigo-500 to-purple-500 py-4 px-6 border-b border-gray-200">
                     <h2 class="text-xl font-semibold text-white">{{ __('Cambiar Contraseña') }}</h2>
                 </div>
