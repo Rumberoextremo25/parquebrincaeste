@@ -13,11 +13,24 @@ const ChangePassword = () => {
 	});
 
 	const handleSubmit = async (e) => {
-		e.preventDefault();
+		e.preventDefault(); // Previene el comportamiento predeterminado del formulario
+
+		// Realiza la solicitud POST a la ruta definida
 		post(route("profile.store_change_password"), {
-			preserveScroll: true,
-			onSuccess: () =>
-				reset("current_password", "password", "password_confirmation"),
+			data: {
+				current_password: data.current_password,
+				password: data.password,
+				password_confirmation: data.password_confirmation,
+			},
+			preserveScroll: true, // Preserva el desplazamiento de la página
+			onSuccess: () => {
+				// Reinicia los campos del formulario después de una respuesta exitosa
+				reset("current_password", "password", "password_confirmation");
+			},
+			onError: (errors) => {
+				// Manejo de errores si es necesario
+				console.log(errors);
+			},
 		});
 	};
 	const onHandleChange = (event) => {

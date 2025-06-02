@@ -7,7 +7,6 @@ use App\Http\Controllers\Pages\PageController;
 use App\Http\Controllers\Profile\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NewsletterController;
-use App\Http\Controllers\ShoppingCartController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
 
@@ -97,12 +96,11 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
 //Rutas Tienda
 Route::get('/product/{slug}', [ProductController::class, 'show'])->name('product');
 
-
 Route::middleware(['auth'])->prefix('dashboard')->name('dashboard.')->group(function () {
 
     Route::get('/', function () {
         if (auth()->user()->hasRole('super-admin')) {
-            return view('dashboard'); // Carga la vista del dashboard para super-admin
+            return Inertia::render('Home/Home'); // Carga la vista del dashboard para super-admin
         }
         return redirect()->route('home'); // Redirige a home si no es super-admin
     })->name('home');

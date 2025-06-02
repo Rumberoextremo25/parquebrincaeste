@@ -45,8 +45,6 @@ class ProfileController extends Controller
 			'name' => $request->name,
 			'email' => $request->email,
 			'phone' => $request->phone,
-			// 'city' => $request->city,
-			// 'address' => $request->address,
 		])->save();
 
 		return Redirect::route('profile.account_details')
@@ -68,7 +66,6 @@ class ProfileController extends Controller
 	public function order_details_pdf($code)
 	{
 		//Logica para PDF
-		return view('pdf.ticket');
 	}
 
 	public function change_password()
