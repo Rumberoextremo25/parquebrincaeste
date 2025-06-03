@@ -100,7 +100,7 @@ Route::middleware(['auth'])->prefix('dashboard')->name('dashboard.')->group(func
 
     Route::get('/', function () {
         if (auth()->user()->hasRole('super-admin')) {
-            return Inertia::render('Home/Home'); // Carga la vista del dashboard para super-admin
+            return view('dashboard'); // Carga la vista del dashboard para super-admin
         }
         return redirect()->route('home'); // Redirige a home si no es super-admin
     })->name('home');
