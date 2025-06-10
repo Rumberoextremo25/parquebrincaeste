@@ -21,7 +21,8 @@ class DatabaseSeeder extends Seeder
         Schema::disableForeignKeyConstraints();
         $this->call([
             UserSeeder::class,
-            ProductsSeeder::class
+            ProductsSeeder::class,
+            PromotionSeeder::class
 
 
         ]);

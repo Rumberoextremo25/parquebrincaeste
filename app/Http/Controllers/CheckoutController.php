@@ -7,6 +7,7 @@ use App\Models\Venta;
 use App\Models\Product; // ¡Importante para revalidar los precios!
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Models\Promotion;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log; // ¡Asegúrate de que esta línea esté presente!
 use Exception; // Para manejar excepciones de forma más clara
@@ -159,18 +160,46 @@ class CheckoutController extends Controller
         }
     }
 
-    private function applyPromotion($promoCode, $monto)
+    private function applyPromotion(?string $promoCode, float $monto): float
     {
         if (empty($promoCode)) {
             return 0;
         }
 
-        // Aquí podrías consultar tu base de datos para códigos de promoción reales
-        // Por ahora, solo el ejemplo estático
-        if ($promoCode === 'DESCUENTO10') {
-            return $monto * 0.10;
+        // 1. Buscar el código de promoción en la base de datos
+        $promotion = Promotion::where('code', $promoCode)
+                              ->where('is_active', true) // Solo promociones activas
+                              ->first();
+
+        // Si no se encuentra la promoción o no está activa
+        if (!$promotion) {
+            return 0;
         }
-        return 0;
+
+        // 2. Validar fechas de inicio y expiración
+        $now = now(); // Carbon instance of current time
+        if ($promotion->starts_at && $now->lt($promotion->starts_at)) {
+            return 0; // La promoción aún no ha comenzado
+        }
+        if ($promotion->expires_at && $now->gt($promotion->expires_at)) {
+            return 0; // La promoción ha expirado
+        }
+
+        // 3. Validar límite de uso
+        if ($promotion->usage_limit !== null && $promotion->used_count >= $promotion->usage_limit) {
+            return 0; // El código de promoción ha alcanzado su límite de uso
+        }
+
+        // 4. Calcular el descuento según el tipo
+        $discount = 0;
+        if ($promotion->type === 'percentage') {
+            $discount = $monto * $promotion->value;
+        } elseif ($promotion->type === 'fixed') {
+            $discount = $promotion->value;
+        }
+
+        // Asegurarse de que el descuento no sea mayor que el monto total
+        return min($discount, $monto);
     }
 
     private function processMobilePayment($factura, $paymentDetails = [])
