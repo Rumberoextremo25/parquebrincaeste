@@ -2,42 +2,16 @@ import React, { useState, useEffect } from "react";
 import { Inertia } from "@inertiajs/inertia";
 import Layout from "@/Layouts/Layout";
 import BannerHero from "@/Components/Hero/BannerHero";
-// --- Datos de PRODUCTOS (Simulado desde tu backend) ---
-const PRODUCTS = [
-    // // Brazaletes por hora (categoría: 'Brazalete')
-    // { id: 1, name: 'Brazalete Azul', description: '11:00 AM a 12:00 M', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 2, name: 'Brazalete Amarillo', description: '12:00 M a 1:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 3, name: 'Brazalete Rojo', description: '1:00 PM a 2:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 4, name: 'Brazalete Verde Manzana', description: '2:00 PM a 3:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 5, name: 'Brazalete Naranja', description: '3:00 PM a 4:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 6, name: 'Brazalete Morado', description: '4:00 PM a 5:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 7, name: 'Brazalete Negro', description: '5:00 PM a 6:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 8, name: 'Brazalete Vinotinto', description: '6:00 PM a 7:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 9, name: 'Brazalete Azul Rey', description: '7:00 PM a 8:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // { id: 10, name: 'Brazalete Azul Marino', description: '8:00 PM a 9:00 PM', price: 15.00, category: 'Brazalete', onlyChildren: false, isRequiredOnce: false },
-    // // Brazalete Baby Park (categoría: 'Baby Park')
-    // { id: 11, name: 'Brazalete Baby Park', description: 'Todas las Horas', price: 12.00, category: 'Baby Park', onlyChildren: true, isRequiredOnce: false },
-    // // Calcetines (categoría: 'Calcetines')
-    // // Añadimos una propiedad `applicableTo` para definir a qué grupo de cliente aplica
-    // { id: 12, name: 'Calcetín Talla 23-26', description: 'Medias para niños, talla 23-26.', price: 5.00, category: 'Calcetines', applicableTo: 'under6', isRequiredOnce: true },
-    // { id: 13, name: 'Calcetín Talla 27-30', description: 'Medias para niños, talla 27-30.', price: 5.00, category: 'Calcetines', applicableTo: 'under6', isRequiredOnce: true },
-    // { id: 14, name: 'Calcetín Talla 31-32', description: 'Medias para niños, talla 31-32.', price: 5.00, category: 'Calcetines', applicableTo: 'under6', isRequiredOnce: true },
-    // { id: 15, name: 'Calcetín Talla S', description: 'Medias para mayores, talla S.', price: 5.00, category: 'Calcetines', applicableTo: 'adultOrOver6', isRequiredOnce: true },
-    // { id: 16, name: 'Calcetín Talla M', description: 'Medias para mayores, talla M.', price: 5.00, category: 'Calcetines', applicableTo: 'adultOrOver6', isRequiredOnce: true },
-    // { id: 17, name: 'Calcetín Talla L', description: 'Medias para mayores, talla L.', price: 5.00, category: 'Calcetines', applicableTo: 'adultOrOver6', isRequiredOnce: true },
-    // { id: 18, name: 'Calcetín Talla XL', description: 'Medias para mayores, talla XL.', price: 5.00, category: 'Calcetines', applicableTo: 'adultOrOver6', isRequiredOnce: true },
-];
 
 const Tienda = (props) => {
+    // Inicializa PRODUCTS desde props, asegurando que el precio sea flotante
+    const [PRODUCTS, setPRODUCTS] = useState(props?.products.map((item) => ({ ...item, price: parseFloat(item.price) })) ?? []);
 
-    const [PRODUCTS,setPRODUCTS] = useState(props?.products.map((item)=>({...item,price:parseFloat(item.price)})) ?? [])
-
-    
     // --- Estados para el formulario de selección ---
     const getDefaultValues = () => {
         const today = new Date();
         return {
-            fecha: today.toLocaleDateString("en-CA", {
+            fecha: today.toLocaleDateString("en-CA", { // "en-CA" para formato YYYY-MM-DD
                 year: "numeric",
                 month: "2-digit",
                 day: "2-digit",
@@ -54,22 +28,37 @@ const Tienda = (props) => {
     const [selectedBraceletId, setSelectedBraceletId] = useState('');
     const [braceletQuantity, setBraceletQuantity] = useState(1);
 
-    const [needsSocks, setNeedsSocks] = useState(false);
     const [selectedSockTallaId, setSelectedSockTallaId] = useState('');
-    const [sockQuantity, setSockQuantity] = useState(1);
+    const [sockQuantity, setSockQuantity] = useState(1); // Cantidad de calcetines fija en 1
 
     // --- Estado para el carrito de compras ---
     const [cartItems, setCartItems] = useState([]);
 
     // --- Productos derivados para facilitar el acceso ---
-    const babyParkBraceletProduct = PRODUCTS.find(p => p.category === 'Baby Park');
-    const hourlyBraceletsProducts = PRODUCTS.filter(p => p.category === 'Brazalete');
-    const socksProducts = PRODUCTS.filter(p => p.category === 'Calcetines');
+    // Función para obtener el día de la semana (0 = Domingo, 1 = Lunes, ..., 6 = Sábado)
+    const getDayOfWeek = (dateString) => {
+        const date = new Date(dateString + 'T12:00:00'); // Añade T12:00:00 para evitar problemas de zona horaria
+        return date.getDay();
+    };
 
-    // Filtra las medias según el tipo de cliente seleccionado
-    const filteredSocks = socksProducts.filter(sock => {
-        return sock.applicableTo === clientType;
-    });
+    // Determina si la fecha seleccionada es de fin de semana (Viernes, Sábado, Domingo)
+    const isWeekend = getDayOfWeek(fecha) === 5 || getDayOfWeek(fecha) === 6 || getDayOfWeek(fecha) === 0; // 5=Viernes, 6=Sábado, 0=Domingo
+    // Determina si la fecha seleccionada es de entre semana (Martes, Miércoles, Jueves)
+    const isWeekday = getDayOfWeek(fecha) >= 2 && getDayOfWeek(fecha) <= 4; // 2=Martes, 3=Miércoles, 4=Jueves
+
+    // Filtra los brazaletes según el día de la semana
+    const filteredBabyParkBraceletProduct = PRODUCTS.find(p =>
+        p.category === 'Pass Baby Park' &&
+        ((isWeekday && p.name.includes('(Martes a Jueves)')) || (isWeekend && p.name.includes('(Viernes a Domingo)')))
+    );
+
+    const filteredHourlyBraceletsProducts = PRODUCTS.filter(p =>
+        p.category === 'Brazalete' &&
+        ((isWeekday && p.name.includes('(Martes a Jueves)')) || (isWeekend && p.name.includes('(Viernes a Domingo)')))
+    );
+
+    // Filtra las medias (calcetines) - su precio ya es fijo en $1.50 desde el seeder
+    const socksProducts = PRODUCTS.filter(p => p.category === 'Calcetines');
 
     const selectedBraceletProduct = PRODUCTS.find(p => p.id === selectedBraceletId);
     const selectedSockProduct = PRODUCTS.find(p => p.id === selectedSockTallaId);
@@ -79,46 +68,114 @@ const Tienda = (props) => {
         setClientType(type);
         setSelectedBraceletId('');
         setBraceletQuantity(1);
-        setNeedsSocks(false);
         setSelectedSockTallaId(''); // Reiniciar talla de medias al cambiar tipo de cliente
-        setSockQuantity(1);
+        setSockQuantity(1); // Mantener en 1
 
-        if (type === 'under6' && babyParkBraceletProduct) {
-            setSelectedBraceletId(babyParkBraceletProduct.id);
+        // Forzar selección del brazalete Baby Park si el tipo de cliente es 'under6'
+        if (type === 'under6' && filteredBabyParkBraceletProduct) {
+            setSelectedBraceletId(filteredBabyParkBraceletProduct.id);
             setBraceletQuantity(1);
         }
     };
 
+    // MODIFICACIÓN IMPORTANTE: useEffect para forzar la selección de calcetines
+    useEffect(() => {
+        // Verificar si se ha seleccionado algún brazalete (sea Baby Park o por hora)
+        const isAnyBraceletSelected = selectedBraceletId !== '';
+
+        if (isAnyBraceletSelected && socksProducts.length > 0) {
+            // Si hay un brazalete seleccionado y hay calcetines disponibles,
+            // y no se ha seleccionado una talla de calcetín, o la que se tiene no aplica,
+            // forzar la selección del primer calcetín disponible.
+            const currentSelectedSockApplies = socksProducts.some(sock => sock.id === selectedSockTallaId);
+
+            if (!selectedSockTallaId || !currentSelectedSockApplies) {
+                // Asegúrate de que el ID del calcetín sea un string si así lo esperas en el select
+                setSelectedSockTallaId(String(socksProducts[0].id));
+            }
+            setSockQuantity(1); // Asegurar que la cantidad sea 1
+        } else if (!isAnyBraceletSelected) {
+            // Si no hay brazalete seleccionado, permitir que el calcetín sea opcional
+            // o deseleccionarlo si ya estaba seleccionado
+            setSelectedSockTallaId('');
+            setSockQuantity(1);
+        }
+    }, [selectedBraceletId, socksProducts, selectedSockTallaId]);
+
+    // Recalcular los productos cuando la fecha cambie para obtener los precios correctos
+    useEffect(() => {
+        // Al cambiar la fecha, re-evaluar si el brazalete actualmente seleccionado sigue siendo válido
+        // para el nuevo día (entre semana/fin de semana).
+        // Si no, deseleccionarlo.
+        if (selectedBraceletProduct) {
+            const currentProductId = selectedBraceletProduct.id;
+            let isValidSelection = false;
+
+            if (selectedBraceletProduct.category === 'Pass Baby Park') {
+                isValidSelection = filteredBabyParkBraceletProduct && filteredBabyParkBraceletProduct.id === currentProductId;
+            } else if (selectedBraceletProduct.category === 'Brazalete') {
+                isValidSelection = filteredHourlyBraceletsProducts.some(p => p.id === currentProductId);
+            }
+
+            if (!isValidSelection) {
+                setSelectedBraceletId('');
+            }
+        }
+        // También, si es 'under6' y cambia la fecha, forzar la selección del Baby Park correcto para la nueva fecha
+        if (clientType === 'under6' && filteredBabyParkBraceletProduct && selectedBraceletId !== filteredBabyParkBraceletProduct.id) {
+             setSelectedBraceletId(filteredBabyParkBraceletProduct.id);
+        }
+
+    }, [fecha, isWeekday, isWeekend, PRODUCTS, clientType, selectedBraceletProduct, filteredBabyParkBraceletProduct, filteredHourlyBraceletsProducts, selectedBraceletId]);
+
+
     // --- Lógica para añadir ítems al carrito ---
     const handleAddToCart = () => {
         setMensaje('');
+
+        // Validar que la fecha no sea ni lunes (1) ni domingo (0) si quieres solo martes a jueves
+        // o si es domingo, que el precio sea de fin de semana
+        const dayOfWeekForValidation = getDayOfWeek(fecha);
+        if (dayOfWeekForValidation === 1) { // Lunes
+            setMensaje("No se pueden comprar brazaletes para los Lunes.");
+            return;
+        }
+         // Si la fecha seleccionada no es ni entre semana ni fin de semana según tus brazaletes cargados
+        if (!isWeekday && !isWeekend) {
+            setMensaje("No hay brazaletes disponibles para la fecha seleccionada. Por favor, elige una fecha entre Martes y Domingo.");
+            return;
+        }
 
         if (!selectedBraceletProduct) {
             setMensaje("Por favor, selecciona un brazalete antes de añadir.");
             return;
         }
 
-        if (needsSocks && !selectedSockProduct) {
-            setMensaje("Por favor, selecciona la talla de las medias.");
+        // Los calcetines son obligatorios si hay un brazalete
+        if (selectedBraceletProduct && !selectedSockProduct) {
+            setMensaje("Las medias son obligatorias con la compra de un brazalete. Por favor, selecciona una talla.");
             return;
         }
 
         const itemsToAdd = [];
 
+        // Asegúrate de que el precio del brazalete en el carrito sea el correcto para el día seleccionado
+        const braceletPrice = selectedBraceletProduct.price; // Este ya debería ser el precio correcto gracias al filtrado
         const braceletCartItem = {
             uniqueId: Date.now() + '-bracelet-' + selectedBraceletProduct.id,
-            product: { ...selectedBraceletProduct },
+            product: { ...selectedBraceletProduct, price: braceletPrice }, // Asegura que el precio en el carrito sea el correcto
             quantity: braceletQuantity,
             selectedDate: fecha,
             clientType: clientType
         };
         itemsToAdd.push(braceletCartItem);
 
-        if (needsSocks && selectedSockProduct) {
+        // Siempre añadir calcetines si se seleccionó un brazalete y un calcetín
+        if (selectedSockProduct) {
             const sockCartItem = {
                 uniqueId: Date.now() + '-sock-' + selectedSockProduct.id,
-                product: { ...selectedSockProduct },
-                quantity: sockQuantity,
+                product: { ...selectedSockProduct }, // El precio de la media ya es 1.50
+                quantity: sockQuantity, // Siempre 1
             };
             itemsToAdd.push(sockCartItem);
         }
@@ -130,7 +187,6 @@ const Tienda = (props) => {
         setClientType(null);
         setSelectedBraceletId('');
         setBraceletQuantity(1);
-        setNeedsSocks(false);
         setSelectedSockTallaId('');
         setSockQuantity(1);
     };
@@ -240,12 +296,12 @@ const Tienda = (props) => {
                         {clientType && (
                             <div className="mt-6">
                                 {/* Sección de Brazalete Baby Park */}
-                                {clientType === 'under6' && babyParkBraceletProduct && (
+                                {clientType === 'under6' && filteredBabyParkBraceletProduct && (
                                     <div className="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200">
                                         <h3 className="text-xl font-semibold text-blue-800 mb-3">Brazalete Baby Park</h3>
                                         <p className="text-blue-700 mb-2">
-                                            **{babyParkBraceletProduct.name}**: {babyParkBraceletProduct.description}
-                                            <span className="font-bold ml-2">${babyParkBraceletProduct.price.toFixed(2)}</span>
+                                            **{filteredBabyParkBraceletProduct.name}**: {filteredBabyParkBraceletProduct.description}
+                                            <span className="font-bold ml-2">${filteredBabyParkBraceletProduct.price.toFixed(2)}</span>
                                         </p>
                                         <div className="flex items-center gap-2 mt-2">
                                             <label htmlFor="babyParkQty" className="text-gray-700">Cantidad:</label>
@@ -260,16 +316,26 @@ const Tienda = (props) => {
                                         </div>
                                     </div>
                                 )}
+                                {/* Si no se encontró el Baby Park para la fecha seleccionada */}
+                                {clientType === 'under6' && !filteredBabyParkBraceletProduct && (
+                                     <p className="text-red-500 text-sm mt-2">No hay brazaletes Baby Park disponibles para la fecha seleccionada.</p>
+                                )}
+
 
                                 {/* Sección de Brazaletes por Hora */}
                                 {clientType === 'adultOrOver6' && (
                                     <div className="bg-green-50 p-4 rounded-md mb-6 border border-green-200">
                                         <h3 className="text-xl font-semibold text-green-800 mb-3">Selecciona tu Franja Horaria (Brazalete)</h3>
-                                        <p className="text-green-700 mb-3">
-                                            Precio por brazalete: ${hourlyBraceletsProducts[0]?.price.toFixed(2)}
-                                        </p>
+                                        {filteredHourlyBraceletsProducts.length > 0 ? (
+                                            <p className="text-green-700 mb-3">
+                                                Precio por brazalete: ${filteredHourlyBraceletsProducts[0]?.price.toFixed(2)}
+                                            </p>
+                                        ) : (
+                                            <p className="text-red-500 text-sm mb-3">No hay brazaletes disponibles para la fecha seleccionada.</p>
+                                        )}
+
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                                            {hourlyBraceletsProducts.map(bracelet => (
+                                            {filteredHourlyBraceletsProducts.map(bracelet => (
                                                 <button
                                                     key={bracelet.id}
                                                     type="button"
@@ -278,7 +344,7 @@ const Tienda = (props) => {
                                                         ${selectedBraceletId === bracelet.id ? 'bg-green-600 text-white shadow-md' : 'bg-white text-green-700 hover:bg-green-100 border-green-300'}
                                                     `}
                                                 >
-                                                    {bracelet.description} <br /> ({bracelet.name.replace('Brazalete ', '')})
+                                                    {bracelet.description} <br /> ({bracelet.name.replace('Brazalete ', '').replace(' (Martes a Jueves)', '').replace(' (Viernes a Domingo)', '')})
                                                 </button>
                                             ))}
                                         </div>
@@ -295,72 +361,48 @@ const Tienda = (props) => {
                                                 />
                                             </div>
                                         )}
-                                        {!selectedBraceletId && (
+                                        {!selectedBraceletId && filteredHourlyBraceletsProducts.length > 0 && (
                                             <p className="text-red-500 text-sm mt-2">Por favor, selecciona una franja horaria.</p>
+                                        )}
+                                        {clientType === 'adultOrOver6' && filteredHourlyBraceletsProducts.length === 0 && (
+                                            <p className="text-red-500 text-sm mt-2">No hay brazaletes de trampolines disponibles para la fecha seleccionada.</p>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Sección de Medias Especiales */}
+                                {/* Sección de Medias Especiales (MODIFICADA) */}
                                 <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 mb-6">
                                     <h3 className="text-xl font-semibold text-yellow-800 mb-3">Medias Especiales</h3>
-                                    <p className="text-yellow-700 mb-2">Obligatorias para usar los trampolines (compra única).</p>
-                                    <div className="flex items-center gap-4 mb-3">
-                                        <label className="inline-flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                className="form-checkbox h-5 w-5 text-yellow-600"
-                                                checked={needsSocks}
-                                                onChange={(e) => setNeedsSocks(e.target.checked)}
-                                            />
-                                            <span className="ml-2 text-gray-700">Sí, necesito medias</span>
-                                        </label>
-                                        <label className="inline-flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                className="form-checkbox h-5 w-5 text-gray-600"
-                                                checked={!needsSocks}
-                                                onChange={(e) => setNeedsSocks(!e.target.checked)}
-                                            />
-                                            <span className="ml-2 text-gray-700">No, ya tengo medias</span>
-                                        </label>
-                                    </div>
+                                    <p className="text-yellow-700 mb-2">Obligatorias para usar los trampolines (compra única por brazalete).</p>
 
-                                    {needsSocks && (
-                                        <>
-                                            <div className="mb-3">
-                                                <label htmlFor="sockTalla" className="block text-gray-700 mb-1">Selecciona Talla:</label>
-                                                <select
-                                                    id="sockTalla"
-                                                    value={selectedSockTallaId}
-                                                    onChange={(e) => setSelectedSockTallaId(parseInt(e.target.value))}
-                                                    className="w-full p-2 border rounded-md bg-white"
-                                                >
-                                                    <option value="">Selecciona la talla de medias</option>
-                                                    {filteredSocks.map(sock => ( // Usamos filteredSocks aquí
-                                                        <option key={sock.id} value={sock.id}>
-                                                            {sock.name} - ${sock.price.toFixed(2)}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                {!selectedSockTallaId && (
-                                                    <p className="text-red-500 text-sm mt-1">Por favor, selecciona una talla de medias.</p>
-                                                )}
-                                            </div>
-                                            {selectedSockTallaId && (
-                                                <div className="flex items-center gap-2">
-                                                    <label htmlFor="sockQty" className="text-gray-700">Cantidad:</label>
-                                                    <input
-                                                        type="number"
-                                                        id="sockQty"
-                                                        min="1"
-                                                        value={sockQuantity}
-                                                        onChange={(e) => setSockQuantity(parseInt(e.target.value) || 1)}
-                                                        className="w-20 p-2 border rounded-md text-center"
-                                                    />
-                                                </div>
-                                            )}
-                                        </>
+                                    <div className="mb-3">
+                                        <label htmlFor="sockTalla" className="block text-gray-700 mb-1">Selecciona Talla:</label>
+                                        <select
+                                            id="sockTalla"
+                                            value={selectedSockTallaId}
+                                            onChange={(e) => setSelectedSockTallaId(parseInt(e.target.value) || '')} // Convertir a int, si es vacío, dejarlo vacío
+                                            className="w-full p-2 border rounded-md bg-white"
+                                            disabled={!selectedBraceletId || socksProducts.length === 0} // Deshabilitar si no hay brazalete o no hay medias
+                                        >
+                                            <option value="">Selecciona la talla de medias</option>
+                                            {socksProducts.map(sock => (
+                                                <option key={sock.id} value={sock.id}>
+                                                    {sock.name} - ${sock.price.toFixed(2)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {selectedBraceletId && !selectedSockTallaId && socksProducts.length > 0 && (
+                                            <p className="text-red-500 text-sm mt-1">Por favor, selecciona una talla de medias.</p>
+                                        )}
+                                        {socksProducts.length === 0 && (
+                                            <p className="text-red-500 text-sm mt-1">No hay medias disponibles.</p>
+                                        )}
+                                    </div>
+                                    {selectedSockTallaId && (
+                                        <div className="flex items-center gap-2">
+                                            <label htmlFor="sockQty" className="text-gray-700">Cantidad:</label>
+                                            <span className="font-semibold text-gray-800">{sockQuantity}</span>
+                                        </div>
                                     )}
                                 </div>
 
@@ -369,9 +411,14 @@ const Tienda = (props) => {
                                     <button
                                         type="button"
                                         onClick={handleAddToCart}
-                                        disabled={!selectedBraceletId || (needsSocks && !selectedSockTallaId)}
+                                        disabled={
+                                            !selectedBraceletId || // No hay brazalete seleccionado
+                                            (selectedBraceletId && !selectedSockTallaId) || // Hay brazalete pero no calcetín
+                                            (clientType === 'under6' && !filteredBabyParkBraceletProduct) || // Si es Baby Park y no hay producto
+                                            (clientType === 'adultOrOver6' && filteredHourlyBraceletsProducts.length === 0) // Si es Trampolines y no hay productos
+                                        }
                                         className={`py-3 px-8 rounded-lg text-lg font-bold transition duration-300
-                                            ${(!selectedBraceletId || (needsSocks && !selectedSockTallaId)) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'}
+                                            ${(!selectedBraceletId || (selectedBraceletId && !selectedSockTallaId) || (clientType === 'under6' && !filteredBabyParkBraceletProduct) || (clientType === 'adultOrOver6' && filteredHourlyBraceletsProducts.length === 0)) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg'}
                                         `}
                                     >
                                         Añadir al Carrito
@@ -408,7 +455,7 @@ const Tienda = (props) => {
                                                     type="button"
                                                     onClick={() => handleUpdateCartItemQuantity(item.uniqueId, item.quantity - 1)}
                                                     className="p-1.5 bg-gray-200 rounded-full text-gray-700 hover:bg-gray-300 transition"
-                                                    disabled={item.quantity <= 1}
+                                                    disabled={item.quantity <= 1 || item.product.category === 'Calcetines'} // Deshabilitar para calcetines
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"></path></svg>
                                                 </button>
@@ -417,6 +464,7 @@ const Tienda = (props) => {
                                                     type="button"
                                                     onClick={() => handleUpdateCartItemQuantity(item.uniqueId, item.quantity + 1)}
                                                     className="p-1.5 bg-gray-200 rounded-full text-gray-700 hover:bg-gray-300 transition"
+                                                    disabled={item.product.category === 'Calcetines'} // Deshabilitar para calcetines
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
                                                 </button>

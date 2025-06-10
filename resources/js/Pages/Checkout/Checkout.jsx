@@ -3,7 +3,10 @@ import Layout from "@/Layouts/Layout";
 import './Checkout.css';
 import BannerHero from '@/Components/Hero/BannerHero';
 
-const Checkout = ({ cartItems, user }) => {
+const Checkout = ({ cartItems: initialCartItems, user }) => {
+    // 1. Crear una copia local de los items del carrito recibidos como prop
+    const [localCartItems, setLocalCartItems] = useState(initialCartItems);
+
     const [formData, setFormData] = useState({
         nombre_completo: '',
         correo: '',
@@ -17,18 +20,22 @@ const Checkout = ({ cartItems, user }) => {
         numero_telefono: '',
         cedula: '',
         clave_dinamica: '',
-        monto: 0
+        monto: 0 // El monto se actualizará automáticamente
     });
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [total, setTotal] = useState(0);
     const [showMobilePaymentInfo, setShowMobilePaymentInfo] = useState(false);
 
+    // 2. Recalcular el total y el monto en formData cada vez que localCartItems cambie
     useEffect(() => {
-        const totalAmount = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+        const totalAmount = localCartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        // *Nota:* He cambiado `item.product.price` a `item.price` aquí,
+        // asumiendo que tu backend ya está enviando `price` directamente en el objeto item
+        // como se ve en tu función `comprar` de Laravel.
         setTotal(totalAmount);
         setFormData((prevData) => ({ ...prevData, monto: totalAmount })); // Establecer el monto automáticamente
-    }, [cartItems]);
+    }, [localCartItems]); // ¡Ahora depende de localCartItems!
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -50,13 +57,23 @@ const Checkout = ({ cartItems, user }) => {
             const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
 
+            // 3. Enviar los `localCartItems` actualizados al backend
             const response = await fetch('/checkout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': csrfToken
                 },
-                body: JSON.stringify({ ...formData, total })
+                // Asegúrate de que tu backend esté esperando un campo `items`
+                // similar a como lo validas en `comprar` para que esto funcione.
+                body: JSON.stringify({
+                    ...formData,
+                    total, // El total calculado en el frontend (aunque el backend debería recalcularlo)
+                    items: localCartItems.map(item => ({ // Enviar los items con cantidades actualizadas
+                        product_id: item.id, // Usar item.id directamente
+                        quantity: item.quantity,
+                    }))
+                })
             });
 
             if (!response.ok) {
@@ -77,21 +94,23 @@ const Checkout = ({ cartItems, user }) => {
         }
     };
 
-    const InputField = ({ type, name, label, value, onChange, required }) => (
+    const InputField = ({ type, name, label, value, onChange, required, readOnly }) => (
         <div className="form-group">
             <label htmlFor={name}>{label}</label>
-            <input type={type} name={name} id={name} required={required} value={value} onChange={onChange} />
+            <input type={type} name={name} id={name} required={required} value={value} onChange={onChange} readOnly={readOnly} />
         </div>
     );
 
+    // 4. Modificar localCartItems con los botones de cantidad
     const handleQuantityChange = (productId, change) => {
-        setCartItems((prevItems) => {
+        setLocalCartItems((prevItems) => {
             return prevItems.map((item) => {
-                if (item.product.id === productId) {
+                if (item.id === productId) { // Usar item.id directamente para la comparación
                     const newQuantity = item.quantity + change;
                     return {
                         ...item,
-                        quantity: newQuantity > 0 ? newQuantity : 1,
+                        quantity: newQuantity > 0 ? newQuantity : 1, // Asegura que la cantidad no sea menor a 1
+                        subtotal: (newQuantity > 0 ? newQuantity : 1) * item.price // Recalcula el subtotal del ítem
                     };
                 }
                 return item;
@@ -176,7 +195,7 @@ const Checkout = ({ cartItems, user }) => {
                                     type="number"
                                     name="monto"
                                     label="Monto"
-                                    value={formData.monto} // El monto se establece automáticamente
+                                    value={formData.monto.toFixed(2)} // Muestra el monto formateado
                                     readOnly // Campo de solo lectura
                                 />
                             </div>
@@ -190,28 +209,29 @@ const Checkout = ({ cartItems, user }) => {
 
                 <div className="col-25 p-4" style={{ marginLeft: '20px' }}>
                     <div className="container">
-                        <h4>Cart
+                        <h4>Carrito
                             <span className="price" style={{ color: 'black' }}>
                                 <i className="fa fa-shopping-cart"></i>
-                                <b>{cartItems.length}</b>
+                                <b>{localCartItems.length}</b>
                             </span>
                         </h4>
-                        {cartItems.map((item) => (
-                            <div key={item.product.id} className="cart-item">
+                        {/* 5. Renderizar localCartItems */}
+                        {localCartItems.map((item) => (
+                            <div key={item.id} className="cart-item"> {/* Usar item.id directamente */}
                                 <p>
-                                    <a href="#">{item.product.name}</a>
-                                    <span className="price">${item.product.price.toFixed(2)}</span>
+                                    <a href="#">{item.name}</a> {/* Usar item.name directamente */}
+                                    <span className="price">${item.price.toFixed(2)}</span> {/* Usar item.price directamente */}
                                 </p>
                                 <div className="quantity-controls">
                                     <button
-                                        onClick={() => handleQuantityChange(item.product.id, -1)}
+                                        onClick={() => handleQuantityChange(item.id, -1)}
                                         disabled={item.quantity <= 1}
                                     >
                                         -
                                     </button>
                                     <span className="quantity">{item.quantity}</span>
                                     <button
-                                        onClick={() => handleQuantityChange(item.product.id, 1)}
+                                        onClick={() => handleQuantityChange(item.id, 1)}
                                     >
                                         +
                                     </button>

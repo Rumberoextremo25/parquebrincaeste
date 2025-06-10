@@ -4,30 +4,49 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class ProductsSeeder extends Seeder
 {
     public function run()
     {
-        $precio_brazalete = 6.00;
-        $precio_calcetines = 7.50;
+        // Precios definidos para brazaletes
+        $precio_brazalete_semana = 5.00; // Martes a Jueves
+        $precio_brazalete_fin_semana = 6.00; // Viernes a Domingo
+        $precio_calcetines = 1.50; // ¡Costo actualizado para las medias!
 
         $products = [];
 
-        // Generar brazaletes por hora
-        $products = array_merge($products, $this->generateBrazaletesByHour($precio_brazalete));
+        // Generar brazaletes por hora para Días de Semana (Martes a Jueves)
+        $products = array_merge($products, $this->generateBrazaletesByHour(
+            $precio_brazalete_semana,
+            ' (Martes a Jueves)' // Sufijo para diferenciar
+        ));
 
-        // Brazalete "Baby Park"
+        // Generar brazaletes por hora para Fines de Semana (Viernes a Domingo)
+        $products = array_merge($products, $this->generateBrazaletesByHour(
+            $precio_brazalete_fin_semana,
+            ' (Viernes a Domingo)' // Sufijo para diferenciar
+        ));
+
+        // Brazalete "Baby Park" para Días de Semana
         $products[] = $this->createProductData(
-            'Brazalete Baby Park',
+            'Brazalete Baby Park (Martes a Jueves)',
             'Todas las Horas',
-            $precio_brazalete,
+            $precio_brazalete_semana,
             'Pass Baby Park',
             true
         );
 
-        // Generar calcetines por talla
+        // Brazalete "Baby Park" para Fines de Semana
+        $products[] = $this->createProductData(
+            'Brazalete Baby Park (Viernes a Domingo)',
+            'Todas las Horas',
+            $precio_brazalete_fin_semana,
+            'Pass Baby Park',
+            true
+        );
+
+        // Generar calcetines por talla con el nuevo precio
         $products = array_merge($products, $this->generateSocksByTalla($precio_calcetines));
 
         // Insertar los productos en la base de datos
@@ -56,10 +75,12 @@ class ProductsSeeder extends Seeder
             'only_children' => $onlyChildren,
         ];
     }
+
     /**
      * Helper para generar datos de brazaletes por hora.
+     * Añadimos un parámetro para el sufijo del nombre.
      */
-    private function generateBrazaletesByHour(float $price): array
+    private function generateBrazaletesByHour(float $price, string $nameSuffix = ''): array
     {
         $brazaletes = [];
         $horas = [
@@ -77,7 +98,7 @@ class ProductsSeeder extends Seeder
 
         foreach ($horas as $description => $color) {
             $brazaletes[] = $this->createProductData(
-                "Brazalete $color",
+                "Brazalete $color" . $nameSuffix, // Agregamos el sufijo al nombre
                 $description,
                 $price,
                 'Brazalete'

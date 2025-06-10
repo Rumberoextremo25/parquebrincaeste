@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Factura; // Asegúrate de importar tus modelos
+use App\Models\Venta;
+use App\Models\Product; // ¡Importante para revalidar los precios!
 use Illuminate\Http\Request;
-use App\Models\Factura;
-use App\Models\Venta; // Usamos el modelo Venta
-use App\Models\Cart;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; // ¡Asegúrate de que esta línea esté presente!
+use Exception; // Para manejar excepciones de forma más clara
+use Illuminate\Validation\ValidationException; // Importar la clase de excepción de validación
 
 class CheckoutController extends Controller
 {
@@ -16,37 +19,83 @@ class CheckoutController extends Controller
         $user = $request->user();
 
         // Obtener los items del carrito desde la sesión
+        // En tu método 'comprar' del TiendaController, estás enviando cartItemsDetails
+        // que ya tiene los detalles completos del producto (id, name, price, quantity, subtotal).
+        // Si vienes de esa ruta, esta variable 'cartItems' ya estará llena.
         $cartItems = session()->get('cartItems', []);
 
+        // *Mejora Opcional:* Si el carrito está vacío, podrías redirigir al usuario
+        // de vuelta a la tienda o mostrar un mensaje.
+        if (empty($cartItems)) {
+            // Option 1: Redirect with Inertia (preferred for SPA flow)
+            //return redirect()->route('tienda.index')->with('error', 'Tu carrito está vacío. Añade productos para proceder al pago.');
+            // Option 2: Render a specific empty cart component (if you have one)
+            // return Inertia::render('Checkout/EmptyCart', ['message' => 'Tu carrito está vacío.']);
+        }
+
         return Inertia::render('Checkout/Checkout', [
-            'cartItems' => $cartItems,
-            'user' => $user,
+            'cartItems' => $cartItems, // Se pasan los items para que el frontend los use como initialCartItems
+            'user' => $user, // Datos del usuario autenticado
         ]);
     }
 
     public function store(Request $request)
     {
         try {
-            // Validar los datos de entrada
+            // --- VALIDACIÓN DE DATOS DEL FORMULARIO DE CHECKOUT ---
             $validatedData = $request->validate([
-                'producto_id' => 'required|integer|exists:products,id',
-                'nombre' => 'required|string',
-                'precio' => 'required|numeric',
-                'cantidad' => 'required|integer|min:1',
-                'fecha' => 'required|date',
-                'hora' => 'required|date_format:H:i',
-                'tipoTicket' => 'required|string',
-                'talla' => 'nullable|string',
-                'cantidadMedias' => 'nullable|integer|min:0',
-                'tallaMedias' => 'nullable|string',
-                'cartItems' => 'required|array', // Asegúrate de validar los artículos del carrito
-                'total' => 'required|numeric', // Asegúrate de que el total sea enviado correctamente
+                'nombre_completo' => 'required|string',
+                'correo' => 'required|email',
+                'telefono' => 'required|string',
+                'direccion' => 'required|string',
+                'ciudad' => 'required|string',
+                'codigo_postal' => 'required|string',
+                'promoCode' => 'nullable|string',
+                'paymentMethod' => 'required|string|in:mobile-payment,in-store',
+                'nombre_banco' => 'nullable|string|required_if:paymentMethod,mobile-payment',
+                'numero_telefono' => 'nullable|string|required_if:paymentMethod,mobile-payment',
+                'cedula' => 'nullable|string|required_if:paymentMethod,mobile-payment',
+                'clave_dinamica' => 'nullable|string|required_if:paymentMethod,mobile-payment',
+                'monto' => 'required|numeric|min:0', // El monto enviado desde el frontend (se revalidará)
+
+                // --- VALIDACIÓN DE LOS ITEMS DEL CARRITO ---
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|integer|exists:products,id',
+                'items.*.quantity' => 'required|integer|min:1',
             ]);
 
             DB::beginTransaction(); // Iniciar una transacción
-            // Aplicar promoción si existe
-            $descuento = $this->applyPromotion($validatedData['promoCode'], $validatedData['total']);
-            $montoFinal = $validatedData['total'] - $descuento;
+
+            $totalCalculatedBackend = 0;
+            $itemsForFactura = [];
+
+            // --- REVALIDAR Y CALCULAR EL TOTAL EN EL BACKEND (CRUCIAL POR SEGURIDAD) ---
+            foreach ($validatedData['items'] as $itemData) {
+                $product = Product::findOrFail($itemData['product_id']); // Obtener el producto de la DB
+                $quantity = $itemData['quantity'];
+
+                $itemSubtotal = $product->price * $quantity;
+                $totalCalculatedBackend += $itemSubtotal;
+
+                $itemsForFactura[] = [
+                    'product_id' => $product->id,
+                    'cantidad' => $quantity,
+                    'precio' => $product->price,
+                    'subtotal' => $itemSubtotal,
+                ];
+            }
+
+            // Aplicar promoción si existe (al total calculado en el backend)
+            $descuento = $this->applyPromotion($validatedData['promoCode'] ?? null, $totalCalculatedBackend);
+            $montoFinal = $totalCalculatedBackend - $descuento;
+
+            // *Consideración:* Aquí podrías añadir una validación extra
+            // para asegurarte de que $validatedData['monto'] (enviado desde el frontend)
+            // es igual o muy cercano a $montoFinal. Si hay una discrepancia grande,
+            // podría ser un intento de manipulación o un error de cálculo en el frontend.
+            // if (abs($validatedData['monto'] - $montoFinal) > 0.01) {
+            //     throw new Exception("Error de cálculo del monto. Por favor, intente de nuevo.");
+            // }
 
             // Crear la factura
             $factura = Factura::create([
@@ -56,67 +105,101 @@ class CheckoutController extends Controller
                 'direccion' => $validatedData['direccion'],
                 'ciudad' => $validatedData['ciudad'],
                 'codigo_postal' => $validatedData['codigo_postal'],
-                'promo_code' => $validatedData['promoCode'],
+                'promo_code' => $validatedData['promoCode'] ?? null,
                 'metodo_pago' => $validatedData['paymentMethod'],
                 'total' => $montoFinal,
-                'estatus' => $validatedData['paymentMethod'] === 'pago_movil' ? 'completado' : 'pendiente', // Establecer el estatus
+                'estatus' => $validatedData['paymentMethod'] === 'mobile-payment' ? 'pendiente_pago_movil' : 'pendiente_caja',
             ]);
 
             // Crear las ventas asociadas a la factura
-            foreach ($validatedData['cartItems'] as $item) {
-                Venta::create([ // Usamos el modelo Venta
+            foreach ($itemsForFactura as $item) {
+                Venta::create([
                     'factura_id' => $factura->id,
-                    'producto_id' => $item['product']['id'], // Asegúrate de que el índice sea correcto
-                    'cantidad' => $item['quantity'],
-                    'precio' => $item['product']['price'],
-                    'subtotal' => $item['product']['price'] * $item['quantity'], // Agregar subtotal si es necesario
+                    'producto_id' => $item['product_id'],
+                    'cantidad' => $item['cantidad'],
+                    'precio' => $item['precio'],
+                    'subtotal' => $item['subtotal'],
                 ]);
             }
 
             // Procesar el pago si es mediante pago móvil
-            if ($validatedData['paymentMethod'] === 'pago_movil') {
-                $this->processMobilePayment($factura);
+            if ($validatedData['paymentMethod'] === 'mobile-payment') {
+                $this->processMobilePayment($factura, [
+                    'nombre_banco' => $validatedData['nombre_banco'],
+                    'numero_telefono' => $validatedData['numero_telefono'],
+                    'cedula' => $validatedData['cedula'],
+                    'clave_dinamica' => $validatedData['clave_dinamica'],
+                    'monto_pagado' => $validatedData['monto'],
+                ]);
             }
 
             DB::commit(); // Confirmar la transacción
 
+            // Limpiar el carrito de la sesión después de una compra exitosa
+            session()->forget('cartItems');
+
             // Retornar la vista de éxito usando Inertia
             return Inertia::render('Checkout/Success', [
-                'message' => 'Compra realizada con éxito.',
+                'message' => '¡Tu compra ha sido procesada con éxito!',
+                'facturaId' => $factura->id,
+                'totalFinal' => $montoFinal,
             ]);
-        } catch (\Exception $e) {
-            DB::rollBack(); // Revertir la transacción en caso de error
-            return response()->json(['message' => 'Error al procesar la compra: ' . $e->getMessage()], 500);
+
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            // Esto asegura que Inertia reciba los errores de validación correctamente
+            // y tu componente de React pueda mostrarlos (usando Inertia's `props.errors`).
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (Exception $e) {
+            DB::rollBack(); // Revertir la transacción en caso de cualquier otro error
+            Log::error('Error en el proceso de checkout: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            // Redirigir a la página anterior con un error genérico.
+            // Inertia lo capturará y el `props.errors.checkout` estará disponible.
+            return redirect()->back()->withErrors(['checkout' => 'Hubo un problema inesperado al procesar su pedido. Por favor, inténtelo de nuevo más tarde.'])->withInput();
         }
     }
 
     private function applyPromotion($promoCode, $monto)
     {
-        // Aquí puedes implementar la lógica para aplicar la promoción
-        // Por ejemplo, si el código de promoción es "DESCUENTO10", aplica un 10% de descuento
-        if ($promoCode === 'DESCUENTO10') {
-            return $monto * 0.10; // 10% de descuento
+        if (empty($promoCode)) {
+            return 0;
         }
-        return 0; // Sin descuento
+
+        // Aquí podrías consultar tu base de datos para códigos de promoción reales
+        // Por ahora, solo el ejemplo estático
+        if ($promoCode === 'DESCUENTO10') {
+            return $monto * 0.10;
+        }
+        return 0;
     }
 
-    private function processMobilePayment($factura)
+    private function processMobilePayment($factura, $paymentDetails = [])
     {
-        // Aquí implementas la lógica para llamar a la API bancaria
-        $response = $this->callBankApi($factura);
+        $response = $this->callBankApi($factura, $paymentDetails);
 
         if ($response['status'] !== 'success') {
-            // Manejar el error de pago
-            throw new \Exception('Error en el procesamiento del pago móvil: ' . $response['message']);
+            $factura->update(['estatus' => 'pago_movil_fallido']);
+            // Es crucial lanzar una excepción aquí para que la transacción se revierta
+            throw new Exception('Error en el procesamiento del pago móvil: ' . $response['message']);
         }
 
-        // Si el pago es exitoso, actualiza el estatus de la factura
         $factura->update(['estatus' => 'completado']);
     }
 
-    private function callBankApi($factura)
+    private function callBankApi($factura, $paymentDetails)
     {
         // Simulación de una llamada a la API bancaria
+        Log::info('Simulando llamada a API bancaria para factura: ' . $factura->id, $paymentDetails);
+
+        // Ejemplo de simulación de fallo basado en un monto insuficiente
+        // Descomenta y ajusta si quieres probar fallos
+        // if ($paymentDetails['monto_pagado'] < $factura->total) {
+        //     return [
+        //         'status' => 'error',
+        //         'message' => 'El monto pagado es insuficiente para cubrir el total de la factura.',
+        //     ];
+        // }
+
         return [
             'status' => 'success',
             'message' => 'Pago procesado correctamente.',
@@ -125,8 +208,12 @@ class CheckoutController extends Controller
 
     public function success()
     {
+        // Esta función es útil si navegas directamente a /checkout/success
+        // o si necesitas una página de éxito genérica.
+        // Si el método `store` ya redirige directamente a una página de éxito de Inertia,
+        // esta ruta podría no ser visitada directamente por Inertia después de una compra.
         return Inertia::render('Checkout/Success', [
-            'message' => session('message'),
-        ]); // Asegúrate de que esta vista exista
+            'message' => session('message') ?? 'Gracias por tu compra. Tu pedido está en proceso.',
+        ]);
     }
 }
