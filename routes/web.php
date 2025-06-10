@@ -24,10 +24,15 @@ use App\Http\Controllers\ProductController;
 */
 
 Route::get('/', [PageController::class, 'home'])->name('home');
-Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
+    Route::post('/tienda', [TiendaController::class, 'comprar'])->name('comprar');
+});
 
 // Ruta para procesar el checkout
-Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+Route::get('/checkout', [CheckoutController::class, 'index'])
+    ->name('checkout.show') // Asigna un nombre a la ruta para poder referenciarla fácilmente
+    ->middleware('auth');   // Protege esta ruta, requiriendo que el usuario inicie sesión
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 Route::get('/success', [CheckoutController::class, 'success'])->name('success');
 

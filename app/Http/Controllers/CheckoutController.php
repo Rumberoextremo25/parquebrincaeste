@@ -26,23 +26,24 @@ class CheckoutController extends Controller
 
     public function store(Request $request)
     {
-        // Validar los datos de entrada
-        $validatedData = $request->validate([
-            'nombre_completo' => 'required|string|max:255',
-            'correo' => 'required|email|max:255',
-            'telefono' => 'required|string|max:15',
-            'direccion' => 'required|string|max:255',
-            'ciudad' => 'required|string|max:100',
-            'codigo_postal' => 'required|string|max:10',
-            'promoCode' => 'nullable|string|max:50',
-            'paymentMethod' => 'required|string',
-            'cartItems' => 'required|array', // Asegúrate de validar los artículos del carrito
-            'total' => 'required|numeric', // Asegúrate de que el total sea enviado correctamente
-        ]);
-
-        DB::beginTransaction(); // Iniciar una transacción
-
         try {
+            // Validar los datos de entrada
+            $validatedData = $request->validate([
+                'producto_id' => 'required|integer|exists:products,id',
+                'nombre' => 'required|string',
+                'precio' => 'required|numeric',
+                'cantidad' => 'required|integer|min:1',
+                'fecha' => 'required|date',
+                'hora' => 'required|date_format:H:i',
+                'tipoTicket' => 'required|string',
+                'talla' => 'nullable|string',
+                'cantidadMedias' => 'nullable|integer|min:0',
+                'tallaMedias' => 'nullable|string',
+                'cartItems' => 'required|array', // Asegúrate de validar los artículos del carrito
+                'total' => 'required|numeric', // Asegúrate de que el total sea enviado correctamente
+            ]);
+
+            DB::beginTransaction(); // Iniciar una transacción
             // Aplicar promoción si existe
             $descuento = $this->applyPromotion($validatedData['promoCode'], $validatedData['total']);
             $montoFinal = $validatedData['total'] - $descuento;

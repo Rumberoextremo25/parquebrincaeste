@@ -16,14 +16,12 @@ return new class extends Migration
             $table->string('name');
             $table->text('description')->nullable();
             $table->decimal('price', 8, 2);
-            $table->integer('stock')->default(0);
             $table->string('category');
-            $table->string('size')->nullable();
             $table->time('time')->nullable();
+            $table->boolean('only_children')->default(0); // Agregar el campo only_children
             $table->timestamps();
         });
     }
-
     /**
      * Reverse the migrations.
      */
