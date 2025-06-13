@@ -33,9 +33,10 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
 
     // Datos del comercio para Pago Móvil (ejemplo, deberían venir de tu backend o configuración)
     const merchantMobilePaymentDetails = {
-        banco: 'Banco Ejemplo C.A.',
-        cedula: 'J-12345678-9',
-        telefono: '0412-3456789'
+        banco: 'Bancaribe C.A.',
+        cedula: 'J-505728440',
+        Nombre: 'Brinca Este 2024 C.A',
+        telefono: '(0412) 350 88 26'
     };
 
     // Efecto para recalcular el total
@@ -231,6 +232,9 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                         </li>
                                         <li className="mb-2 text-lg text-blue-800">
                                             <strong>Cédula/RIF:</strong> <span className="font-semibold">{merchantMobilePaymentDetails.cedula}</span>
+                                        </li>
+                                        <li className="mb-2 text-lg text-blue-800">
+                                            <strong>Nombre de Empresa:</strong> <span className="font-semibold">{merchantMobilePaymentDetails.Nombre}</span>
                                         </li>
                                         <li className="mb-2 text-lg text-blue-800">
                                             <strong>Número de Teléfono:</strong> <span className="font-semibold">{merchantMobilePaymentDetails.telefono}</span>
