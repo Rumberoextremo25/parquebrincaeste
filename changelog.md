@@ -4,6 +4,18 @@ Todos los cambios notables del proyecto se documentarán en este archivo.
 
 ---
 
+## [1.0.1] - 2025-06-16 
+
+### Añadido
+- Configuración del seender de usuarios.
+
+### Corregido
+- Cambio del archivo promotion a Promotion para vinculación correcta con su semilla.
+
+### Cambiado
+- Al momento de la migración se crean 2 usuarios un administrador y un usuario generico
+---
+
 ## [1.0.0] - 2025-06-16 (Fecha de inicio o primera versión funcional)
 
 ### Añadido
