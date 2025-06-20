@@ -339,7 +339,7 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                 <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-200">
                                     <p>
                                         <a href="#" className="text-blue-600 hover:underline">{item.name}</a>
-                                        <span className="text-gray-700 ml-2">${item.price.toFixed(2)}</span>
+                                        <span className="text-gray-700 ml-2">${item.price}</span>
                                     </p>
                                     <div className="flex items-center">
                                         <button

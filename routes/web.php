@@ -1,4 +1,5 @@
 <?php
+
 use Inertia\Inertia;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\TiendaController;
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
-
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProductController;
 
 /*
@@ -24,6 +25,28 @@ use App\Http\Controllers\ProductController;
 */
 
 Route::get('/', [PageController::class, 'home'])->name('home');
+
+// // Ruta GET para la Página A (donde está el formulario)
+// Route::get('/test-a', function () {
+//     return Inertia::render('Test/TestA');
+// })->name('test-a'); // Damos un nombre a la ruta por si necesitamos referenciarla
+
+// // Ruta POST que recibe el mensaje de Página A y lo procesa
+// Route::post('/send-message', [MessageController::class, 'sendMessage'])->name('send-message');
+
+// // Ruta GET para la Página B (que mostrará el mensaje)
+// // NOTA: Esta ruta no necesita un controlador si solo renderiza una vista y recibe props vía flash.
+// Route::get('/test-b', function () {
+//     // Cuando Inertia redirige con flash data, ese flash data se convierte en props.
+//     // Lo leeremos en PageB.jsx usando usePage().props.flash.message
+//     return Inertia::render('Test/TestB');
+// })->name('test-b');
+
+
+
+
+
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
     Route::post('/tienda', [TiendaController::class, 'comprar'])->name('comprar');
@@ -68,9 +91,9 @@ Route::post('/contact-us/save', [ContactController::class, 'save'])->name('conta
 Route::post('/web/newsletter', [NewsletterController::class, 'subscribe']);
 
 //Rutas para sidebar Dashboard - Administrador
-Route::get('/dashboard', [DashboardController::class, 'home'])->name('dashboard.home');  
-Route::get('/my-account', [DashboardController::class, 'myAccount'])->name('dashboard.my_account');  
-Route::get('/ventas', [DashboardController::class, 'ventas'])->name('dashboard.ventas'); 
+Route::get('/dashboard', [DashboardController::class, 'home'])->name('dashboard.home');
+Route::get('/my-account', [DashboardController::class, 'myAccount'])->name('dashboard.my_account');
+Route::get('/ventas', [DashboardController::class, 'ventas'])->name('dashboard.ventas');
 Route::get('/finanzas', [DashboardController::class, 'finanzas'])->name('dashboard.finanzas');
 
 // Rutas para generación de reportes PDF
@@ -94,8 +117,7 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
             Route::get('/my-orders', 'my_orders')->name('my_orders');
             Route::get('/change-password', 'change_password')->name('change_password');
             Route::post('/change-password', 'store_change_password')->name('store_change_password');
-        });
-    ;
+        });;
 });
 
 //Rutas Tienda
