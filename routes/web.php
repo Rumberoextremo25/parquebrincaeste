@@ -45,7 +45,7 @@ Route::get('/', [PageController::class, 'home'])->name('home');
 
 
 
-
+Route::get('/home', [PageController::class, 'home'])->middleware('record.visit')->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/tienda', [TiendaController::class, 'tienda'])->name('tienda');
@@ -60,8 +60,8 @@ Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.s
 Route::get('/success', [CheckoutController::class, 'success'])->name('success');
 
 // Rutas para el controlador de facturas
-Route::get('/invoice/{id}', [InvoiceController::class, 'show'])->name('invoice.show');
-Route::get('/invoice/download/{id}', [InvoiceController::class, 'download'])->name('invoice.download');
+Route::get('/invoice/success/{invoiceId}', [InvoiceController::class, 'purchaseSuccess'])->name('invoice.purchaseSuccess');
+Route::get('/invoice/{id}/download', [InvoiceController::class, 'download'])->name('invoice.download');
 
 // Rutas para el controlador de compras exitosas
 Route::get('/purchase-success', [InvoiceController::class, 'purchaseSuccess'])->name('invoice.purchaseSuccess');

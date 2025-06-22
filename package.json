@@ -42,6 +42,7 @@
         "react-trix": "^0.10.2",
         "slick-carousel": "^1.8.1",
         "sweetalert2": "^11.22.0",
-        "swiper": "^10.1.0"
+        "swiper": "^10.1.0",
+        "ziggy-js": "^2.5.3"
     }
 }

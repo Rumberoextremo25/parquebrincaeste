@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -11,17 +12,70 @@ use App\Http\Controllers\Controller;
 use TCPDF;
 use App\Models\Finanza;
 use App\Models\Visita;
+use Illuminate\Contracts\View\View;
 
 class DashboardController extends Controller
 {
-    private $db;
-    public function home()
+    public function home(Request $request): View
     {
         // Obtener el total de usuarios registrados
-        $totalUsuario = User::count(); // Asegúrate de que tienes un modelo User
+        $totalUsers = User::count();
 
-        // Pasar los datos a la vista
-        return view('dashboard', compact('totalVentas', 'ventasDiarias', 'totalTickets', 'totalUsuario')); // Cambia 'totalUsuarios' a 'userCount'
+        // Obtener el total de visitas registradas
+        $totalVisits = Visita::count();
+
+        // --- Lógica para visitas y usuarios de hoy/ayer y porcentajes ---
+
+        // Visitas de hoy
+        $visitsToday = Visita::whereDate('visited_at', Carbon::today())->count();
+
+        // Visitas de ayer
+        $visitsYesterday = Visita::whereDate('visited_at', Carbon::yesterday())->count();
+
+        // Calcular porcentaje de cambio de visitas (hoy vs ayer)
+        $percentageChangeVisits = 0;
+        if ($visitsYesterday > 0) {
+            $percentageChangeVisits = (($visitsToday - $visitsYesterday) / $visitsYesterday) * 100;
+        } elseif ($visitsToday > 0) {
+            $percentageChangeVisits = 100; // Si no hubo visitas ayer pero sí hoy, es un aumento del 100%
+        }
+        // Formatear porcentaje para mostrar con un signo
+        $percentageChangeVisitsFormatted = number_format($percentageChangeVisits, 2) . '%';
+        if ($percentageChangeVisits > 0) {
+            $percentageChangeVisitsFormatted = '+' . $percentageChangeVisitsFormatted;
+        }
+
+        // Nuevos usuarios registrados hoy
+        $newUsersToday = User::whereDate('created_at', Carbon::today())->count();
+
+        // Nuevos usuarios registrados ayer
+        $newUsersYesterday = User::whereDate('created_at', Carbon::yesterday())->count();
+
+        // Calcular porcentaje de cambio de usuarios (hoy vs ayer)
+        $percentageChangeUsers = 0;
+        if ($newUsersYesterday > 0) {
+            $percentageChangeUsers = (($newUsersToday - $newUsersYesterday) / $newUsersYesterday) * 100;
+        } elseif ($newUsersToday > 0) {
+            $percentageChangeUsers = 100; // Si no hubo usuarios nuevos ayer pero sí hoy, es un aumento del 100%
+        }
+        // Formatear porcentaje para mostrar con un signo
+        $percentageChangeUsersFormatted = number_format($percentageChangeUsers, 2) . '%';
+        if ($percentageChangeUsers > 0) {
+            $percentageChangeUsersFormatted = '+' . $percentageChangeUsersFormatted;
+        }
+
+
+        // Pasa las variables actualizadas a la vista
+        return view('dashboard', [
+            'totalUsers' => $totalUsers,
+            'totalVisits' => $totalVisits,
+            'visitsToday' => $visitsToday,
+            'newUsersToday' => $newUsersToday,
+            'percentageChangeVisits' => $percentageChangeVisitsFormatted,
+            'percentageChangeUsers' => $percentageChangeUsersFormatted,
+            'percentageChangeVisitsRaw' => $percentageChangeVisits, // Puedes pasar el valor raw para la lógica de color
+            'percentageChangeUsersRaw' => $percentageChangeUsers, // Puedes pasar el valor raw para la lógica de color
+        ]);
     }
 
     public function myAccount()
@@ -79,56 +133,131 @@ class DashboardController extends Controller
 
     // Metodos para Ventas
 
-    public function Ventas()
+    public function Ventas(Request $request): View
     {
+        // Obtener ventas del día actual para la tarjeta
         $ventasDiarias = $this->obtenerVentasPorDia();
 
-        return view('ventas', compact(
-            'ventasDiarias',
-        ));
+        // --- Lógica para el gráfico de ventas mensuales ---
+        $currentYear = Carbon::now()->year;
+
+        // Obtener ventas por mes del año actual
+        $ventasMensualesColeccion = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total_ventas')
+            ->whereYear('fecha', $currentYear)
+            ->groupBy('mes')
+            ->orderBy('mes')
+            ->pluck('total_ventas', 'mes');
+
+        $mesesNombres = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+            7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+        ];
+
+        $labelsMeses = [];
+        $ventasData = [];
+
+        // Rellenar con 0 para los meses sin ventas
+        for ($i = 1; $i <= 12; $i++) {
+            $labelsMeses[] = $mesesNombres[$i];
+            $ventasData[] = $ventasMensualesColeccion->get($i, 0); // Si no hay ventas, usa 0
+        }
+
+        // Pasa todas las variables a la vista
+        return view('ventas', [
+            'ventasDiarias' => $ventasDiarias,
+            'labelsMeses' => $labelsMeses,
+            'ventasData' => $ventasData,
+        ]);
     }
 
     // Metodos para Finanzas
 
-    public function finanzas()
+    public function finanzas(): View
     {
-        // Obtener ingresos del mes actual y año actual desde la tabla Ventas
-        $totalIngresoMesActual = Venta::whereYear('fecha', date('Y'))
-            ->whereMonth('fecha', date('m'))
-            ->sum('monto'); // Asumiendo que 'monto' es el campo que representa el ingreso en la tabla Ventas
-
-        // Guardar en la tabla Finanza solo el ingreso total del mes actual
-        Finanza::create([
-            'ingreso' => $totalIngresoMesActual,
-            'gasto' => 0,
-            'fecha' => now(),
-            'descripcion' => 'Ingresos del mes ' . date('F Y'), // Campo descripción
-        ]);
-
-        // Cálculo de ingresos totales y gastos totales
+        // --- 1. Calcular Ingresos, Gastos y Beneficio Neto Global desde la tabla Finanza ---
         $ingresosTotales = Finanza::sum('ingreso');
-        $gastosTotales = Finanza::sum('gasto'); // Asegúrate de que esto se ajuste a tu lógica
+        $gastosTotales = Finanza::sum('gasto');
         $beneficioNeto = $ingresosTotales - $gastosTotales;
 
-        // Obtener los ingresos por mes desde la tabla Ventas
-        $ingresosPorMes = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total') // Cambia 'monto' por el campo adecuado
+        // --- 2. (Opcional, basado en tu lógica anterior) Registrar/Actualizar Ingresos del Mes Actual en Finanza ---
+        $currentMonth = Carbon::now()->month;
+        $currentYear = Carbon::now()->year;
+
+        // Sumar ingresos del mes actual desde 'Venta' para actualizar 'Finanza'
+        $totalIngresoMesActualDeVentas = Venta::whereYear('created_at', $currentYear)
+            ->whereMonth('created_at', $currentMonth)
+            ->sum('monto');
+
+        // Busca si ya existe un registro de Finanza para el mes actual
+        $finanzaMesActual = Finanza::whereYear('fecha', $currentYear)
+                                    ->whereMonth('fecha', $currentMonth)
+                                    ->first();
+
+        if ($finanzaMesActual) {
+            // Si ya existe, actualiza el ingreso para el mes actual en Finanza
+            $finanzaMesActual->update([
+                'ingreso' => $totalIngresoMesActualDeVentas,
+                // Si también gestionas gastos diarios/mensuales y los quieres consolidar aquí,
+                // tendrías que calcularlos y actualizarlos también.
+            ]);
+        } else {
+            // Si no existe, crea un nuevo registro para el mes actual
+            Finanza::create([
+                'ingreso' => $totalIngresoMesActualDeVentas,
+                'gasto' => 0, // Inicia con 0, a menos que tengas otra fuente para los gastos de este mes
+                'fecha' => Carbon::now()->startOfMonth(), // Al inicio del mes
+                'descripcion' => 'Ingresos consolidados de ventas para ' . Carbon::now()->format('F Y'),
+            ]);
+        }
+
+        // --- 3. Obtener Datos Mensuales para los Gráficos directamente desde la tabla Finanza ---
+
+        // Obtener ingresos por mes del año actual desde la tabla Finanza
+        $ingresosPorMesColeccion = Finanza::selectRaw('MONTH(fecha) as mes, SUM(ingreso) as total_ingresos')
+            ->whereYear('fecha', $currentYear) // Asegúrate de filtrar por el año actual
             ->groupBy('mes')
             ->orderBy('mes')
-            ->pluck('total', 'mes');
+            ->pluck('total_ingresos', 'mes');
 
-        $ingresosData = $ingresosPorMes->values()->toArray();
-        $meses = $ingresosPorMes->keys()->map(function ($mes) {
-            return date('F', mktime(0, 0, 0, $mes, 1));
-        })->toArray();
+        // Obtener gastos por mes del año actual desde la tabla Finanza
+        $gastosPorMesColeccion = Finanza::selectRaw('MONTH(fecha) as mes, SUM(gasto) as total_gastos')
+            ->whereYear('fecha', $currentYear) // Asegúrate de filtrar por el año actual
+            ->groupBy('mes')
+            ->orderBy('mes')
+            ->pluck('total_gastos', 'mes');
 
+        $mesesNombres = [
+            1 => 'Ene', 2 => 'Feb', 3 => 'Mar', 4 => 'Abr', 5 => 'May', 6 => 'Jun',
+            7 => 'Jul', 8 => 'Ago', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic'
+        ];
+
+        $ingresosData = [];
+        $gastosData = [];
+        $beneficioNetoData = [];
+        $labelsMeses = [];
+
+        for ($i = 1; $i <= 12; $i++) {
+            $mesNombre = $mesesNombres[$i];
+            $labelsMeses[] = $mesNombre;
+
+            // Obtener ingresos y gastos para el mes 'i' desde las colecciones (que ya vienen de Finanza)
+            $ingreso = $ingresosPorMesColeccion->get($i, 0);
+            $gasto = $gastosPorMesColeccion->get($i, 0);
+
+            $ingresosData[] = $ingreso;
+            $gastosData[] = $gasto;
+            $beneficioNetoData[] = $ingreso - $gasto;
+        }
+
+        // Pasa las variables a la vista
         return view('finanzas', [
             'ingresosTotales' => $ingresosTotales,
             'gastosTotales' => $gastosTotales,
             'beneficioNeto' => $beneficioNeto,
             'ingresosData' => $ingresosData,
-            'meses' => $meses,
-            'ingresosMesActual' => $totalIngresoMesActual,
-            'ingresosMesAnterior' => null, // Puedes calcular el ingreso del mes anterior si lo deseas
+            'gastosData' => $gastosData,
+            'beneficioNetoData' => $beneficioNetoData,
+            'labelsMeses' => $labelsMeses,
         ]);
     }
 
@@ -138,21 +267,13 @@ class DashboardController extends Controller
         return view('finanzas', compact('ventasData', 'meses'));
     }
 
-    private function obtenerVentasPorDia()
+    private function obtenerVentasPorDia(): float
     {
-        $totalDiaActual = Venta::whereDate('fecha', date('Y-m-d'))
+        $totalDiaActual = Venta::whereDate('fecha', Carbon::today())
             ->sum('monto');
 
         return $totalDiaActual;
     }
-
-    // Datos de ventas por semana
-
-    // Datos de ventas por mes
-
-    // Datos de ventas por año
-
-    //Logica para generar Reportes de Ventas Y Finanzas
 
     public function generarPDFVentas()
     {

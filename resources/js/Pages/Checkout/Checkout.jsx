@@ -1,20 +1,21 @@
-import React, { useState, useEffect, Fragment } from 'react'; // Import Fragment
+import React, { useState, useEffect, Fragment } from 'react';
 import Layout from '@/Layouts/Layout';
 import BannerHero from '@/Components/Hero/BannerHero';
-import Modal from '@/Components/Modal'; // <--- VERIFICA ESTA RUTA DE NUEVO, DEBE SER LA CORRECTA A TU MODAL EXISTENTE
+import Modal from '@/Components/Modal';
+import { Inertia } from '@inertiajs/inertia';
 
-const Checkout = ({ cartItems: initialCartItems, user }) => {
+const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: initialAvailableBanks }) => {
     const [localCartItems, setLocalCartItems] = useState(initialCartItems);
     const [formData, setFormData] = useState({
-        nombre_completo: '',
-        correo: '',
+        nombre_completo: user?.name || '',
+        correo: user?.email || '',
         telefono: '',
         direccion: '',
         ciudad: '',
         codigo_postal: '',
         promoCode: '',
         paymentMethod: '',
-        banco_remitente: '', // Este será ahora el valor seleccionado del dropdown
+        banco_remitente: '',
         numero_telefono_remitente: '',
         cedula_remitente: '',
         numero_referencia_pago: '',
@@ -22,16 +23,11 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
     });
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [successMessage, setSuccessMessage] = useState(''); // New state for success messages
     const [total, setTotal] = useState(0);
     const [showMobilePaymentInfoModal, setShowMobilePaymentInfoModal] = useState(false);
     const [showMobilePaymentForm, setShowMobilePaymentForm] = useState(false);
 
-    // --- ESTADOS PARA LA LISTA DE BANCOS ---
-    const [availableBanks, setAvailableBanks] = useState([]); // Almacena la lista de bancos
-    const [banksLoading, setBanksLoading] = useState(true);   // Indica si los bancos están cargando
-    const [banksError, setBanksError] = useState('');        // Almacena errores al cargar bancos
-
-    // Datos del comercio para Pago Móvil (ejemplo, deberían venir de tu backend o configuración)
     const merchantMobilePaymentDetails = {
         banco: 'Bancaribe C.A.',
         cedula: 'J-505728440',
@@ -39,39 +35,11 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
         telefono: '(0412) 350 88 26'
     };
 
-    // Efecto para recalcular el total
     useEffect(() => {
         const totalAmount = localCartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
         setTotal(totalAmount);
         setFormData((prevData) => ({ ...prevData, monto: totalAmount }));
     }, [localCartItems]);
-
-    // --- EFECTO ACTUALIZADO PARA CARGAR LA LISTA DE BANCOS DESDE EL BACKEND ---
-    useEffect(() => {
-        const fetchBanks = async () => {
-            setBanksLoading(true);
-            setBanksError('');
-            try {
-                // CAMBIO AQUÍ: Llamada real al endpoint de tu Laravel
-                const response = await fetch('/api/bancos/listar');
-
-                if (!response.ok) {
-                    // Si la respuesta no es 2xx, lanza un error
-                    const errorText = await response.text(); // Intenta leer el texto del error
-                    throw new Error(`Error al cargar bancos: ${response.status} - ${errorText}`);
-                }
-                const data = await response.json();
-                setAvailableBanks(data);
-            } catch (error) {
-                setBanksError(error.message);
-                console.error("Error al cargar bancos:", error);
-            } finally {
-                setBanksLoading(false);
-            }
-        };
-
-        fetchBanks();
-    }, []); // El array vacío asegura que se ejecute solo una vez al montar
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -82,6 +50,13 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                 setShowMobilePaymentInfoModal(true);
                 setShowMobilePaymentForm(true);
             } else {
+                setFormData(prevData => ({
+                    ...prevData,
+                    banco_remitente: '',
+                    numero_telefono_remitente: '',
+                    cedula_remitente: '',
+                    numero_referencia_pago: ''
+                }));
                 setShowMobilePaymentInfoModal(false);
                 setShowMobilePaymentForm(false);
             }
@@ -92,46 +67,52 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
         e.preventDefault();
         setLoading(true);
         setErrorMessage('');
+        setSuccessMessage(''); // Clear previous success messages
 
-        try {
-            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
-
-            const response = await fetch('/checkout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': csrfToken
-                },
-                body: JSON.stringify({
-                    ...formData,
-                    total,
-                    items: localCartItems.map(item => ({
-                        product_id: item.id,
-                        quantity: item.quantity,
-                    }))
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al procesar la compra.');
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                window.location.href = '/Checkout/Success';
-            } else {
-                throw new Error('Error en la respuesta del servidor.');
-            }
-        } catch (error) {
-            setErrorMessage(error.message);
-        } finally {
+        if (localCartItems.length === 0) {
+            setErrorMessage('Tu carrito está vacío. Añade productos para continuar.');
             setLoading(false);
+            return;
         }
+
+        const dataToSend = {
+            ...formData,
+            total,
+            items: localCartItems.map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                price: item.price,
+            }))
+        };
+
+        Inertia.post('/checkout', dataToSend, {
+            onStart: () => setLoading(true),
+            onFinish: () => setLoading(false),
+            onSuccess: ({ props }) => {
+                const { paymentMethod } = dataToSend; // Get paymentMethod from the form data
+                if (paymentMethod === 'in-store') {
+                    // Assuming your backend returns an order number in props.order_number on success
+                    setSuccessMessage(`¡Compra exitosa! Lleva tu número de orden ${props.order_number || ''} a la caja para cancelar y retirar tus entradas.`);
+                } else if (paymentMethod === 'mobile-payment') {
+                    setSuccessMessage(`¡Compra exitosa! Lleva tu comprobante de pago y número de orden ${props.order_number || ''} a la caja y retira tus entradas.`);
+                }
+                // Clear cart items on successful checkout
+                setLocalCartItems([]);
+                // Optionally reset form if needed
+                // setFormData(initialFormDataState);
+            },
+            onError: (inertiaErrors) => {
+                if (inertiaErrors && Object.keys(inertiaErrors).length === 0 && !inertiaErrors.checkout) {
+                    setErrorMessage('Hubo un problema al procesar su pedido. Por favor, revise los datos.');
+                    console.error('Inertia Errors:', inertiaErrors);
+                } else if (inertiaErrors.checkout) {
+                    setErrorMessage(inertiaErrors.checkout);
+                }
+            },
+        });
     };
 
-    const InputField = ({ type, name, label, value, onChange, required, readOnly, placeholder }) => (
+    const InputField = ({ type, name, label, value, onChange, required, readOnly, placeholder, error }) => (
         <div className="mb-4">
             <label htmlFor={name} className="block text-gray-700 text-sm font-bold mb-2">{label}</label>
             <input
@@ -143,8 +124,9 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                 onChange={onChange}
                 readOnly={readOnly}
                 placeholder={placeholder}
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${error ? 'border-red-500' : ''}`}
             />
+            {error && <p className="text-red-500 text-xs italic mt-1">{error}</p>}
         </div>
     );
 
@@ -176,17 +158,35 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                             <strong className="font-bold">Error:</strong>
                             <span className="block sm:inline">{errorMessage}</span>
                         </div>}
+
+                        {successMessage && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+                            <strong className="font-bold">¡Éxito!</strong>
+                            <span className="block sm:inline">{successMessage}</span>
+                        </div>}
+
+                        {Object.keys(errors).length > 0 && (
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                                <strong className="font-bold">¡Por favor corrige los siguientes errores!</strong>
+                                <ul className="mt-2 list-disc list-inside">
+                                    {Object.values(errors).map((error, index) => (
+                                        <li key={index}>{error}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
                         <form className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" onSubmit={handleSubmit}>
                             <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Detalles del Cliente</h2>
                             {['nombre_completo', 'correo', 'telefono'].map((field) => (
                                 <InputField
                                     key={field}
-                                    type={field === 'correo' ? 'email' : 'tel'}
+                                    type={field === 'correo' ? 'email' : 'text'}
                                     name={field}
                                     label={field === 'nombre_completo' ? 'Nombre Completo' : field === 'correo' ? 'Correo Electrónico' : 'Número de Teléfono'}
                                     value={formData[field]}
                                     onChange={handleChange}
                                     required
+                                    error={errors[field]}
                                 />
                             ))}
 
@@ -200,6 +200,7 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                     value={formData[field]}
                                     onChange={handleChange}
                                     required
+                                    error={errors[field]}
                                 />
                             ))}
 
@@ -210,16 +211,25 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                 label="Introduce tu código"
                                 value={formData.promoCode}
                                 onChange={handleChange}
+                                error={errors.promoCode}
                             />
 
                             <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2 mt-8">Pasarela de Pago</h2>
                             <div className="mb-4">
                                 <label htmlFor="payment-method" className="block text-gray-700 text-sm font-bold mb-2">Selecciona tu método de pago</label>
-                                <select name="paymentMethod" id="payment-method" required value={formData.paymentMethod} onChange={handleChange} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                                <select
+                                    name="paymentMethod"
+                                    id="payment-method"
+                                    required
+                                    value={formData.paymentMethod}
+                                    onChange={handleChange}
+                                    className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.paymentMethod ? 'border-red-500' : ''}`}
+                                >
                                     <option value="">Seleccione...</option>
                                     <option value="mobile-payment">Pago Móvil</option>
                                     <option value="in-store">Pago en Caja</option>
                                 </select>
+                                {errors.paymentMethod && <p className="text-red-500 text-xs italic mt-1">{errors.paymentMethod}</p>}
                             </div>
 
                             <Modal show={showMobilePaymentInfoModal} onClose={() => setShowMobilePaymentInfoModal(false)}>
@@ -258,30 +268,16 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                             {showMobilePaymentForm && (
                                 <div className="mt-8">
                                     <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Confirma tu Pago Móvil</h3>
-                                    <div className="mb-4">
-                                        <label htmlFor="banco_remitente" className="block text-gray-700 text-sm font-bold mb-2">Banco del Remitente</label>
-                                        {banksLoading ? (
-                                            <p className="text-gray-500">Cargando bancos...</p>
-                                        ) : banksError ? (
-                                            <p className="text-red-500">Error: {banksError}</p>
-                                        ) : (
-                                            <select
-                                                name="banco_remitente"
-                                                id="banco_remitente"
-                                                value={formData.banco_remitente}
-                                                onChange={handleChange}
-                                                required
-                                                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                                            >
-                                                <option value="">Seleccione el Banco</option>
-                                                {availableBanks.map((bank) => (
-                                                    <option key={bank.id} value={bank.name}>
-                                                        {bank.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </div>
+                                    <InputField
+                                        type="text"
+                                        name="banco_remitente"
+                                        label="Banco del Remitente"
+                                        value={formData.banco_remitente}
+                                        onChange={handleChange}
+                                        required={formData.paymentMethod === 'mobile-payment'}
+                                        placeholder="Ej: Banco Mercantil"
+                                        error={errors.banco_remitente}
+                                    />
 
                                     <InputField
                                         type="tel"
@@ -289,8 +285,9 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                         label="Número de Teléfono del Remitente"
                                         value={formData.numero_telefono_remitente}
                                         onChange={handleChange}
-                                        required
+                                        required={formData.paymentMethod === 'mobile-payment'}
                                         placeholder="Ej: 04XX-XXXXXXX"
+                                        error={errors.numero_telefono_remitente}
                                     />
                                     <InputField
                                         type="text"
@@ -298,8 +295,9 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                         label="Cédula/RIF del Remitente"
                                         value={formData.cedula_remitente}
                                         onChange={handleChange}
-                                        required
+                                        required={formData.paymentMethod === 'mobile-payment'}
                                         placeholder="Ej: V-12345678"
+                                        error={errors.cedula_remitente}
                                     />
                                     <InputField
                                         type="text"
@@ -307,15 +305,17 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                         label="Número de Referencia"
                                         value={formData.numero_referencia_pago}
                                         onChange={handleChange}
-                                        required
+                                        required={formData.paymentMethod === 'mobile-payment'}
                                         placeholder="Ej: 1234567890"
+                                        error={errors.numero_referencia_pago}
                                     />
                                     <InputField
                                         type="number"
                                         name="monto"
                                         label="Monto"
-                                        value={formData.monto.toFixed(2)}
+                                        value={total.toFixed(2)}
                                         readOnly
+                                        error={errors.monto}
                                     />
                                 </div>
                             )}
@@ -335,30 +335,34 @@ const Checkout = ({ cartItems: initialCartItems, user }) => {
                                     <b className="ml-1">{localCartItems.length}</b>
                                 </span>
                             </h4>
-                            {localCartItems.map((item) => (
-                                <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-200">
-                                    <p>
-                                        <a href="#" className="text-blue-600 hover:underline">{item.name}</a>
-                                        <span className="text-gray-700 ml-2">${item.price}</span>
-                                    </p>
-                                    <div className="flex items-center">
-                                        <button
-                                            onClick={() => handleQuantityChange(item.id, -1)}
-                                            disabled={item.quantity <= 1}
-                                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded-l"
-                                        >
-                                            -
-                                        </button>
-                                        <span className="mx-2">{item.quantity}</span>
-                                        <button
-                                            onClick={() => handleQuantityChange(item.id, 1)}
-                                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded-r"
-                                        >
-                                            +
-                                        </button>
+                            {localCartItems.length === 0 ? (
+                                <p className="text-gray-600">El carrito está vacío.</p>
+                            ) : (
+                                localCartItems.map((item) => (
+                                    <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <p>
+                                            <a href="#" className="text-blue-600 hover:underline">{item.name}</a>
+                                            <span className="text-gray-700 ml-2">${item.price}</span>
+                                        </p>
+                                        <div className="flex items-center">
+                                            <button
+                                                onClick={() => handleQuantityChange(item.id, -1)}
+                                                disabled={item.quantity <= 1}
+                                                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded-l"
+                                            >
+                                                -
+                                            </button>
+                                            <span className="mx-2">{item.quantity}</span>
+                                            <button
+                                                onClick={() => handleQuantityChange(item.id, 1)}
+                                                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded-r"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                             <hr className="my-4" />
                             <p className="text-right">Total: <span className="font-bold text-gray-800">${total.toFixed(2)}</span></p>
                         </div>
