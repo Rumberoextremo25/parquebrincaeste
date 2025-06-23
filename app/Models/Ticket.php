@@ -9,48 +9,33 @@ class Ticket extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'tickets'; // Ensure this matches your table name
+    protected $table = 'tickets';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'user_id',
-        'order_number',
-        'customer_name',
-        'customer_email',
-        'customer_phone',
-        'shipping_address',
-        'city',
-        'postal_code',
+        // 'order_number', // Asegúrate de que esto esté en tu migración si lo usas
+        'nombre_completo',
+        'correo',
+        'telefono', // Cambiado de 'customer_phone' a 'telefono' según tu migración
+        'direccion', // Cambiado de 'shipping_address' a 'direccion' según tu migración
+        'ciudad', // Cambiado de 'city' a 'ciudad' según tu migración
+        'codigo_postal', // Cambiado de 'postal_code' a 'codigo_postal' según tu migración
         'promo_code',
         'payment_method',
-        'total_amount',
+        'monto_total', // Cambiado de 'total_amount' a 'monto_total' según tu migración
         'status',
-        'bank_name',          // For mobile payment
-        'sender_phone',       // For mobile payment
-        'sender_id_number',   // For mobile payment
-        'reference_number',   // For mobile payment
+        'banco_remitente', // Cambiado de 'bank_name' a 'banco_remitente' según tu migración
+        'numero_telefono_remitente', // Cambiado de 'sender_phone' a 'numero_telefono_remitente' según tu migración
+        'cedula_remitente', // Cambiado de 'sender_id_number' a 'cedula_remitente' según tu migración
+        'numero_referencia_pago', // Cambiado de 'reference_number' a 'numero_referencia_pago' según tu migración
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'total_amount' => 'decimal:2', // Cast to decimal with 2 places
+        'monto_total' => 'decimal:2', // Correcto, coincide con 'monto_total'
     ];
 
     /**
-     * Get the user that owns the ticket.
+     * Obtiene el usuario propietario del ticket (orden).
      */
     public function user()
     {
@@ -58,7 +43,7 @@ class Ticket extends Model
     }
 
     /**
-     * Get the ticket items for the ticket.
+     * Obtiene los ítems del ticket (ítems de línea) para este ticket (orden).
      */
     public function ticketItems()
     {
@@ -66,12 +51,21 @@ class Ticket extends Model
     }
 
     /**
-     * Get the sales entries for this ticket (if you've added ticket_id to ventas).
-     * This is conditional on your 'ventas' table schema.
+     * Obtiene las entradas de ventas para este ticket (si has añadido ticket_id a ventas).
+     * Esto es condicional al esquema de tu tabla 'ventas'.
      */
     public function ventas()
     {
-        // Assuming you have a 'ticket_id' foreign key in your 'ventas' table
+        // Asumiendo que tienes una clave foránea 'ticket_id' en tu tabla 'ventas'
         return $this->hasMany(Venta::class, 'ticket_id');
+    }
+
+    // --- Nuevo Accessor ---
+    // Esto calculará la cantidad total de productos en todos los ticket_items para este ticket (orden).
+    protected $appends = ['total_productos_cantidad'];
+
+    public function getTotalProductosCantidadAttribute()
+    {
+        return $this->ticketItems->sum('quantity');
     }
 }

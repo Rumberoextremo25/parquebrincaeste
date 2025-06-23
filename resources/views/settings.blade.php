@@ -52,8 +52,14 @@
                                     <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                                 </div>
                                 <input type="password" name="password" id="password"
-                                    class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+                                    class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
                                     placeholder="Dejar en blanco si no deseas cambiarla">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" id="togglePassword">
+                                    <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="eyeIcon">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </div>
                             </div>
                             <p class="mt-2 text-sm text-gray-500">
                                 Una contraseña segura contiene al menos 8 caracteres, mayúsculas, minúsculas, números y símbolos.
@@ -132,10 +138,8 @@
         const disableNotificationsBtn = document.getElementById('disableNotifications');
         const notificationStatusSpan = document.getElementById('notificationStatus');
 
-        // Function to update the UI based on notification permission
         function updateNotificationUI() {
             if (!('Notification' in window)) {
-                // Browser does not support notifications
                 notificationStatusSpan.textContent = 'Tu navegador no soporta notificaciones.';
                 enableNotificationsBtn.style.display = 'none';
                 disableNotificationsBtn.style.display = 'none';
@@ -148,8 +152,6 @@
                 notificationStatusSpan.textContent = 'Notificaciones: Activadas';
                 enableNotificationsBtn.style.display = 'none';
                 disableNotificationsBtn.style.display = 'inline-flex';
-                // You would typically get the push subscription here and save it to your server
-                // getPushSubscription();
             } else if (permission === 'denied') {
                 notificationStatusSpan.textContent = 'Notificaciones: Bloqueadas (cambiar en la configuración del navegador)';
                 enableNotificationsBtn.style.display = 'none';
@@ -160,9 +162,10 @@
                 disableNotificationsBtn.style.display = 'none';
             }
         }
+
         enableNotificationsBtn.addEventListener('click', async () => {
             const permission = await Notification.requestPermission();
-            updateNotificationUI(); // Update UI after user response
+            updateNotificationUI();
 
             if (permission === 'granted') {
                 Swal.fire({
@@ -182,6 +185,7 @@
                 });
             }
         });
+
         disableNotificationsBtn.addEventListener('click', () => {
             Swal.fire({
                 title: '¿Desactivar Notificaciones?',
@@ -202,8 +206,36 @@
             });
         });
 
-        // Initial UI update when the page loads
         updateNotificationUI();
+
+        // --- Lógica para mostrar/ocultar contraseña ---
+        const passwordInput = document.getElementById('password');
+        const togglePassword = document.getElementById('togglePassword');
+        const eyeIcon = document.getElementById('eyeIcon'); // El SVG del ojo
+
+        togglePassword.addEventListener('click', function () {
+            // Alternar el tipo del input entre 'password' y 'text'
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+
+            // Cambiar el ícono del ojo
+            if (type === 'text') {
+                // Ojo cerrado (visible)
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064-7 9.542-7a10.05 10.05 0 011.875.175M12 17a3 3 0 100-6 3 3 0 000 6z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.25 12V4.75a.25.25 0 00-.25-.25H7a.25.25 0 00-.25.25V12"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12c.5 0 1 .5 1 1s-.5 1-1 1-1-.5-1-1 .5-1 1-1z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.25 12h-5.5m5.5 0v7.25a.25.25 0 01-.25.25H7a.25.25 0 01-.25-.25V12"></path>
+                    <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                `;
+            } else {
+                // Ojo abierto (oculto)
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                `;
+            }
+        });
     });
 </script>
 @endsection

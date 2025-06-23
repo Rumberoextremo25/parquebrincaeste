@@ -9,38 +9,23 @@ class TicketItem extends Model
 {
     use HasFactory;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'ticket_items'; // Ensure this matches your table name
+    protected $table = 'ticket_items';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'ticket_id',
         'product_id',
         'quantity',
         'price',
-        'subtotal',
+        // 'subtotal', // Asegúrate de que 'subtotal' esté realmente en tu migración si quieres usarlo
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'price' => 'decimal:2',    // Price at the time of purchase
-        'subtotal' => 'decimal:2', // Subtotal for this item line
+        'price' => 'decimal:2',
+        // 'subtotal' => 'decimal:2', // Conversión a decimal con 2 decimales
     ];
 
     /**
-     * Get the ticket that owns the ticket item.
+     * Obtiene el ticket (orden) al que pertenece este ítem de ticket.
      */
     public function ticket()
     {
@@ -48,7 +33,7 @@ class TicketItem extends Model
     }
 
     /**
-     * Get the product associated with the ticket item.
+     * Obtiene el producto asociado con el ítem del ticket.
      */
     public function product()
     {

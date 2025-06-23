@@ -52,12 +52,12 @@ export default function ProfileDropdown({ children }) {
                                 </div>
                             </Dropdown.Link>
                             <Dropdown.Link
-                                href={route("profile.my_orders")}
+                                href={route("profile.account_details")}
                                 method="get"
                             >
                                 <div className="flex items-center ">
                                     <ShoppingBagIcon className="h-5 w-5 mr-2" />
-                                    <span>Mis Compras</span>
+                                    <span>Mi Cuenta</span>
                                 </div>
                             </Dropdown.Link>
                             {auth.user.role == "super-admin" && (

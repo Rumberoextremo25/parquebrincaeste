@@ -26,18 +26,19 @@ class DashboardController extends Controller
 
         // --- Lógica para visitas y usuarios de hoy/ayer y porcentajes ---
 
-        // Visitas de hoy
-        $visitsToday = Visita::whereDate('visited_at', Carbon::today())->count();
+        // Visitas de hoy (utilizando 'created_at' que es el campo de timestamp de la tabla visitas)
+        $visitsToday = Visita::whereDate('created_at', Carbon::today())->count();
 
         // Visitas de ayer
-        $visitsYesterday = Visita::whereDate('visited_at', Carbon::yesterday())->count();
+        $visitsYesterday = Visita::whereDate('created_at', Carbon::yesterday())->count();
 
         // Calcular porcentaje de cambio de visitas (hoy vs ayer)
         $percentageChangeVisits = 0;
         if ($visitsYesterday > 0) {
             $percentageChangeVisits = (($visitsToday - $visitsYesterday) / $visitsYesterday) * 100;
         } elseif ($visitsToday > 0) {
-            $percentageChangeVisits = 100; // Si no hubo visitas ayer pero sí hoy, es un aumento del 100%
+            // Si no hubo visitas ayer pero sí hoy, es un aumento del 100%
+            $percentageChangeVisits = 100;
         }
         // Formatear porcentaje para mostrar con un signo
         $percentageChangeVisitsFormatted = number_format($percentageChangeVisits, 2) . '%';
@@ -45,36 +46,13 @@ class DashboardController extends Controller
             $percentageChangeVisitsFormatted = '+' . $percentageChangeVisitsFormatted;
         }
 
-        // Nuevos usuarios registrados hoy
-        $newUsersToday = User::whereDate('created_at', Carbon::today())->count();
-
-        // Nuevos usuarios registrados ayer
-        $newUsersYesterday = User::whereDate('created_at', Carbon::yesterday())->count();
-
-        // Calcular porcentaje de cambio de usuarios (hoy vs ayer)
-        $percentageChangeUsers = 0;
-        if ($newUsersYesterday > 0) {
-            $percentageChangeUsers = (($newUsersToday - $newUsersYesterday) / $newUsersYesterday) * 100;
-        } elseif ($newUsersToday > 0) {
-            $percentageChangeUsers = 100; // Si no hubo usuarios nuevos ayer pero sí hoy, es un aumento del 100%
-        }
-        // Formatear porcentaje para mostrar con un signo
-        $percentageChangeUsersFormatted = number_format($percentageChangeUsers, 2) . '%';
-        if ($percentageChangeUsers > 0) {
-            $percentageChangeUsersFormatted = '+' . $percentageChangeUsersFormatted;
-        }
-
-
-        // Pasa las variables actualizadas a la vista
+        // Pasa las variables actualizadas a la vista 'dashboard'
         return view('dashboard', [
             'totalUsers' => $totalUsers,
             'totalVisits' => $totalVisits,
             'visitsToday' => $visitsToday,
-            'newUsersToday' => $newUsersToday,
             'percentageChangeVisits' => $percentageChangeVisitsFormatted,
-            'percentageChangeUsers' => $percentageChangeUsersFormatted,
-            'percentageChangeVisitsRaw' => $percentageChangeVisits, // Puedes pasar el valor raw para la lógica de color
-            'percentageChangeUsersRaw' => $percentageChangeUsers, // Puedes pasar el valor raw para la lógica de color
+            'percentageChangeVisitsRaw' => $percentageChangeVisits, // Útil para lógica de color en la vista // Útil para lógica de color en la vista
         ]);
     }
 
