@@ -23,6 +23,7 @@ return new class extends Migration
 
             $table->integer('quantity'); // Cantidad de este producto en el ticket
             $table->decimal('price', 10, 2); // Precio unitario del producto en el momento de la compra
+            $table->decimal('subtotal', 10, 2);
 
             $table->timestamps(); // created_at y updated_at
         });

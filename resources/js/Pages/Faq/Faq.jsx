@@ -48,7 +48,7 @@ const Faq = () => {
 						<p>
 							Contamos con 3 planes para que realices tus eventos en nuestro parque. Para más información contáctanos al
 							<br />
-							<strong>+58 424 1734777</strong>.
+							<strong>+58 412 3508826</strong>.
 						</p>
 					</FrequentlyAsked>
 				</div>

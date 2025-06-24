@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\TicketController;
 use Inertia\Inertia;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\TiendaController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\ProductController;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -57,11 +59,30 @@ Route::get('/checkout', [CheckoutController::class, 'index'])
     ->name('checkout.show') // Asigna un nombre a la ruta para poder referenciarla fácilmente
     ->middleware('auth');   // Protege esta ruta, requiriendo que el usuario inicie sesión
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
-Route::get('/success', [CheckoutController::class, 'success'])->name('success');
+
+
+
+Route::get('/success/success', function (Request $request) {
+    //dd('params',$request); // <- ¡Ojo con este dd()!
+    // Recupera los datos flasheados de la sesión
+    $orderNumber = $request->session()->get('order_number');
+    $paymentMethod = $request->session()->get('payment_method');
+
+    if (!$orderNumber || !$paymentMethod) {
+        // Redirige a una página de inicio o muestra un error si los datos no están presentes
+        return redirect()->route('home')->with('error', 'No se encontraron los detalles de la orden.');
+    }
+    // Renderiza la vista de Inertia con los datos recuperados
+    return Inertia::render('Success/Success', [
+        'order_number' => $orderNumber,
+        'payment_method' => $paymentMethod,
+    ]);
+})->name('success');
+
+
 
 // Rutas para el controlador de facturas
-Route::get('/invoice/success/{invoiceId}', [InvoiceController::class, 'purchaseSuccess'])->name('invoice.purchaseSuccess');
-Route::get('/invoice/{id}/download', [InvoiceController::class, 'download'])->name('invoice.download');
+Route::get('/invoice/{factura}/download', [InvoiceController::class, 'downloadInvoice'])->name('invoice.download');
 
 // Rutas para el controlador de compras exitosas
 Route::get('/purchase-success', [InvoiceController::class, 'purchaseSuccess'])->name('invoice.purchaseSuccess');
@@ -100,6 +121,9 @@ Route::get('/finanzas', [DashboardController::class, 'finanzas'])->name('dashboa
 Route::get('/ventas/pdf', [DashboardController::class, 'generarPDFVentas'])->name('ventas.pdf');
 Route::get('/finanzas/pdf', [DashboardController::class, 'generarPDFFinanzas'])->name('finanzas.pdf');
 
+
+Route::get('/dashboard', [DashboardController::class, 'home'])->name('dashboard');
+
 // Rutas para el Dashboard del Usuario
 Route::post('/dashboard/update-account', [DashboardController::class, 'updateAccount'])->name('update_account');
 Route::post('/dashboard/change-password', [DashboardController::class, 'changePassword'])->name('change_password');
@@ -120,6 +144,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
         });;
 });
 
+Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])
+    ->name('web.newsletter');
+
 //Rutas Tienda
 Route::get('/product/{slug}', [ProductController::class, 'show'])->name('product');
 
@@ -132,5 +159,46 @@ Route::middleware(['auth'])->prefix('dashboard')->name('dashboard.')->group(func
         return redirect()->route('home'); // Redirige a home si no es super-admin
     })->name('home');
 });
+
+Route::get('/dashboard/change-password', function () {
+    return Inertia::render('Profile/ChangePassword');
+})->name('dashboard.change-password.show');
+
+
+Route::post('/profile/store-change-password', [App\Http\Controllers\ProfileController::class, 'storeChangePassword'])->name('profile.store_change_password');
+
+Route::post('/profile/account-details', [App\Http\Controllers\ProfileController::class, 'storeAccountDetails'])->name('store_account_details');
+
+Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    // Ruta para actualizar la información del perfil (POST/PUT/PATCH)
+Route::patch('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    // Ruta para eliminar la cuenta del usuario
+Route::delete('/profile', [App\Http\Controllers\ProfileController::class, 'destroy'])->name('profile.destroy');
+
+
+// 1. Ruta para descargar la factura por su ID (e.g., /invoice/123/download)
+// Si el frontend envía solo el ID numérico y luego /download.
+Route::get('/invoice/{identifier}/download', [TicketController::class, 'downloadInvoice'])
+     ->where('identifier', '[0-9]+') // Asegura que {identifier} sea un número
+     ->defaults('type', 'id') // Pasa 'id' como el segundo parámetro al método downloadInvoice
+     ->name('ticket.invoice.download_by_id');
+
+// 2. Ruta para descargar la factura por su NÚMERO DE FACTURA (e.g., /invoice/numero/FAC-ABC-123/download)
+// Esta ruta coincide con la URL que estabas usando.
+Route::get('/invoice/numero/{identifier}/download', [TicketController::class, 'downloadInvoice'])
+     ->where('identifier', '[\w-]+') // Permite letras, números y guiones para el número de factura
+     ->defaults('type', 'numero') // Pasa 'numero' como el segundo parámetro al método downloadInvoice
+     ->name('ticket.invoice.download_by_number');
+
+
+// RUTA DEL REPORTE PARA COMPROBANTE DE COMPRA
+
+Route::get('/invoice/{factura}/download', [InvoiceController::class, 'downloadInvoiceById'])
+     ->name('invoice.download'); // Manteniendo el nombre original si quieres
+
+// Ruta para descargar la factura por su NÚMERO DE FACTURA
+// Ejemplo: /invoice/numero/FAC-XYZ-123/download
+Route::get('/invoice/numero/{numero_factura}/download', [InvoiceController::class, 'downloadInvoiceByNumber'])
+     ->name('invoice.download_by_number'); // Nuevo nombre para esta ruta
 
 require __DIR__ . '/auth.php';

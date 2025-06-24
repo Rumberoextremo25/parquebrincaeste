@@ -2,100 +2,221 @@
 
 @extends('layouts.app')
 
-@section('title', 'Dashboard')
+@section('title', 'Panel de Control - Parque Brinca') {{-- Título más descriptivo --}}
 
 @section('content')
-<div class="container mt-5">
-    <h1 class="text-center mb-4">Dashboard</h1>
-
-    <div class="row justify-content-center">
-        <div class="col-6 col-md-3">
-            <div class="card text-white bg-info mb-3 shadow-sm border-0 hover-shadow">
-                <div class="card-header text-center font-weight-bold">Usuarios Registrados</div>
-                <div class="card-body text-center">
-                    <h5 class="card-title display-5">{{ $totalUsers ?? 0 }}</h5>
-                    <p class="card-text text-muted font-weight-bold">
-                        {{-- New users today data is not provided by the method --}}
-                        0 hoy (0.00%)
-                    </p>
-                </div>
-            </div>
+    <div class="container py-4"> {{-- Usamos py-4 para padding vertical --}}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="display-4 mb-0 text-dark">📊 Panel de Control</h1>
+            {{-- Puedes añadir botones de acción aquí, si los necesitas --}}
+            {{-- <a href="#" class="btn btn-primary">Nuevo Reporte</a> --}}
         </div>
 
-        <div class="col-6 col-md-3">
-            <div class="card text-white bg-danger mb-3 shadow-sm border-0 hover-shadow">
-                <div class="card-header text-center font-weight-bold">Visitas Totales</div>
-                <div class="card-body text-center">
-                    <h5 class="card-title display-5">{{ $totalVisits ?? 0 }}</h5>
-                    <p class="card-text {{ ($percentageChangeVisitsRaw ?? 0) >= 0 ? 'text-success' : 'text-danger' }} font-weight-bold">
-                        {{ $visitsToday ?? 0 }} hoy ({{ $percentageChangeVisits ?? '0.00%' }})
-                    </p>
+        <hr class="my-4 border-light-subtle"> {{-- Separador visual más suave --}}
+
+        <h2 class="h4 mb-3 text-muted">Métricas Clave</h2>
+        <div class="row">
+            {{-- Tarjeta de Usuarios Registrados --}}
+            <div class="col-sm-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-lg border-0 bg-gradient-user text-white"> {{-- h-100 para altura igual, sombra más pronunciada, gradiente personalizado --}}
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-person-fill fs-2 me-3 text-white-75"></i> {{-- Icono de Bootstrap Icons --}}
+                            <h5 class="card-title mb-0 fw-semibold">Usuarios Registrados</h5>
+                        </div>
+                        {{-- Opción 1: Usar number_format para un formato de número más legible (ej. 1,234) --}}
+                        <p class="display-3 mb-0 fw-bold">{{ number_format($TotalUsers ?? 0, 0, ',', '.') }}</p>
+                        <small class="text-white-50">Total de usuarios en el sistema</small>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {{-- Tarjeta de Visitas Totales --}}
+            <div class="col-sm-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-lg border-0 bg-gradient-visits text-white">
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-graph-up-arrow fs-2 me-3 text-white-75"></i> {{-- Icono de Bootstrap Icons --}}
+                            <h5 class="card-title mb-0 fw-semibold">Visitas Totales</h5>
+                        </div>
+                        {{-- Opción 2: Usar una estructura @if/@else para control condicional más explícito --}}
+                        @if (isset($TotalVisits) && $TotalVisits > 0)
+                            <p class="display-3 mb-0 fw-bold">{{ number_format($TotalVisits, 0, ',', '.') }}</p>
+                        @else
+                            <p class="display-3 mb-0 fw-bold">0</p>
+                        @endif
+                        <small class="text-white-50">Total de visitas registradas</small>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tarjeta de Suscriptores del Newsletter --}}
+            <div class="col-sm-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-lg border-0 bg-gradient-subscribers text-white">
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-newspaper fs-2 me-3 text-white-75"></i> {{-- Icono de Bootstrap Icons --}}
+                            <h5 class="card-title mb-0 fw-semibold">Suscriptores Newsletter</h5>
+                        </div>
+                        {{-- Opción 3: Mostrar un mensaje si es cero o no está definido --}}
+                        @empty($TotalSubscribers)
+                            <p class="display-3 mb-0 fw-bold">N/A</p> {{-- O 0, o un mensaje diferente --}}
+                        @else
+                            <p class="display-3 mb-0 fw-bold">{{ number_format($TotalSubscribers, 0, ',', '.') }}</p>
+                        @endempty
+                        <small class="text-white-50">Personas interesadas en tus novedades</small>
+                    </div>
+                </div>
+            </div>
+        </div> {{-- Fin de la fila de métricas --}}
+
+        {{-- Aquí puedes añadir la tabla de suscriptores si también quieres mostrar la lista --}}
+        {{-- Para la tabla, necesitarías que tu controlador pase la variable $subscribers con Subscriber::all() o paginate() --}}
+        {{-- Ya te di el código para la tabla en respuestas anteriores, puedes pegarlo aquí si lo necesitas. --}}
+
     </div>
-</div>
 
-<style>
-/* ... (tu estilo CSS existente) ... */
-.container {
-    margin-top: 2rem;
-}
+    <style>
+        /* Estilos generales para el dashboard */
+        body {
+            background-color: #f0f2f5;
+            /* Fondo más suave y moderno */
+            font-family: 'Inter', sans-serif;
+            /* Fuente moderna, si la tienes importada */
+        }
 
-.card {
-    border: none;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.3s ease;
-}
+        .container {
+            max-width: 1300px;
+            /* Un poco más ancho para dashboards grandes */
+        }
 
-.card:hover {
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
+        .display-4 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            /* Más negrita para el título principal */
+            color: #343a40;
+            /* Color de texto oscuro para contraste */
+        }
 
-.card-header {
-    background-color: transparent;
-    border-bottom: none;
-    font-weight: bold;
-    padding-bottom: 0.5rem;
-}
+        .text-muted {
+            color: #6c757d !important;
+            /* Color gris estándar para texto sutil */
+        }
 
-.card-body {
-    padding: 1rem;
-}
+        .border-light-subtle {
+            border-color: #e9ecef !important;
+            /* Color de borde más claro para HR */
+        }
 
-.card-title {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-}
+        /* Estilos de las tarjetas de métricas */
+        .card {
+            border-radius: 1rem;
+            /* Bordes más redondeados */
+            overflow: hidden;
+            /* Para que el gradiente se aplique bien */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+            /* Sombra inicial suave */
+        }
 
-.card-text {
-    font-size: 1rem;
-}
+        .card:hover {
+            transform: translateY(-8px);
+            /* Efecto flotante más pronunciado */
+            box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+            /* Sombra al pasar el mouse */
+        }
 
-.text-success {
-    color: #28a745 !important;
-}
+        .card-body {
+            padding: 2rem;
+            /* Más padding interno */
+            position: relative;
+            z-index: 1;
+            /* Para asegurar que el contenido esté sobre el fondo */
+        }
 
-.text-danger {
-    color: #dc3545 !important;
-}
+        .card-title {
+            font-size: 1.25rem;
+            /* Tamaño del título de la métrica */
+            font-weight: 600;
+            opacity: 0.95;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            /* Sombra ligera al texto para visibilidad */
+        }
 
-/* Color Themes (as originally provided) */
-.bg-info {
-    background-color: #17a2b8 !important;
-    color: #fff;
-}
+        .display-3 {
+            /* Clase para los números grandes de las métricas */
+            font-size: 3.5rem;
+            font-weight: 800;
+            /* Más negrita */
+            line-height: 1;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
 
-.bg-danger {
-    background-color: #dc3545 !important;
-    color: #fff;
-}
+        .text-white-75 {
+            opacity: 0.75;
+            /* Iconos un poco menos opacos que el texto principal */
+        }
 
-/* Hover Effect */
-.hover-shadow:hover {
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-    transition: box-shadow 0.3s ease;
-}
-</style>
+        .text-white-50 {
+            opacity: 0.6;
+            /* Texto pequeño más sutil */
+        }
+
+        /* Gradientes para las tarjetas (PERSONALIZA ESTOS COLORES A TU GUSTO) */
+        .bg-gradient-user {
+            background: linear-gradient(135deg, #6dd5ed, #2193b0);
+            /* Azul claro a azul oscuro */
+        }
+
+        .bg-gradient-visits {
+            background: linear-gradient(135deg, #ee9ca7, #ffdde1);
+            /* Rosa a blanco rosado */
+        }
+
+        .bg-gradient-subscribers {
+            background: linear-gradient(135deg, #c3a3ff, #8d73f1);
+            /* Morado claro a morado oscuro */
+        }
+
+        /* Estilos de Iconos (requiere Bootstrap Icons CDN) */
+        .bi {
+            font-size: 2rem;
+            line-height: 1;
+        }
+
+        /* Utilidades de Bootstrap (solo si no las tienes en tu CSS global o si usas una versión antigua) */
+        .d-flex {
+            display: flex !important;
+        }
+
+        .justify-content-between {
+            justify-content: space-between !important;
+        }
+
+        .align-items-center {
+            align-items: center !important;
+        }
+
+        .flex-column {
+            flex-direction: column !important;
+        }
+
+        .me-3 {
+            margin-right: 1rem !important;
+        }
+
+        .mb-0 {
+            margin-bottom: 0 !important;
+        }
+
+        .fw-bold {
+            font-weight: 700 !important;
+        }
+
+        .fw-semibold {
+            font-weight: 600 !important;
+        }
+    </style>
 @endsection

@@ -28,7 +28,7 @@ const Footer = () => {
                                     className="rounded-full bg-white p-2 transition duration-150 hover:bg-blue-400"
                                 >
                                     <img
-                                        src="img/logo/facebook-logo.png" // Cambia esta ruta por la ruta real de la imagen del logo  
+                                        src="/img/logo/facebook-logo.png" // Cambia esta ruta por la ruta real de la imagen del logo  
                                         alt="Facebook"
                                         className="w-6 h-6" // Ajusta el tamaño según sea necesario  
                                     />
@@ -39,7 +39,7 @@ const Footer = () => {
                                     className="rounded-full bg-white p-2 transition duration-150 hover:bg-blue-400"
                                 >
                                     <img
-                                        src="img/logo/instagram-logo.svg" // Cambia esta ruta por la ruta real de la imagen del logo  
+                                        src="/img/logo/instagram-logo.svg" // Cambia esta ruta por la ruta real de la imagen del logo  
                                         alt="Instagram"
                                         className="w-6 h-6" // Ajusta el tamaño según sea necesario  
                                     />
@@ -50,7 +50,7 @@ const Footer = () => {
                                     className="rounded-full bg-white p-2 transition duration-150 hover:bg-blue-400"
                                 >
                                     <img
-                                        src="img/logo/Tiktok-logo.png" // Cambia esta ruta por la ruta real de la imagen del logo  
+                                        src="/img/logo/Tiktok-logo.png" // Cambia esta ruta por la ruta real de la imagen del logo  
                                         alt="TikTok"
                                         className="w-6 h-6" // Ajusta el tamaño según sea necesario  
                                     />

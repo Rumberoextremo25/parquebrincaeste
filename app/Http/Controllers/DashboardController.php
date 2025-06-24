@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Subscriber;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
@@ -18,42 +19,27 @@ class DashboardController extends Controller
 {
     public function home(Request $request): View
     {
-        // Obtener el total de usuarios registrados
-        $totalUsers = User::count();
+        // Puedes obtener el usuario autenticado si lo necesitas en el controlador
+        // $user = Auth::user();
 
-        // Obtener el total de visitas registradas
-        $totalVisits = Visita::count();
+        // Obtener el total de usuarios registrados desde la tabla 'users'
+        $TotalUsers = User::count(); // Cambiado a $TotalUsers para consistencia
 
-        // --- Lógica para visitas y usuarios de hoy/ayer y porcentajes ---
+        // Obtener el total de visitas registradas desde la tabla 'visitas'
+        // Si no tienes un modelo 'Visit' o tabla 'visitas', puedes inicializar a 0 o manejar de otra forma
+        $TotalVisits = Visita::count();
 
-        // Visitas de hoy (utilizando 'created_at' que es el campo de timestamp de la tabla visitas)
-        $visitsToday = Visita::whereDate('created_at', Carbon::today())->count();
+        // Obtener el total de suscriptores del newsletter desde la tabla 'subscribers'
+        // Si no tienes un modelo 'Subscriber' o tabla 'subscribers', puedes inicializar a 0 o manejar de otra forma
+        $TotalSubscribers = Subscriber::count();
 
-        // Visitas de ayer
-        $visitsYesterday = Visita::whereDate('created_at', Carbon::yesterday())->count();
-
-        // Calcular porcentaje de cambio de visitas (hoy vs ayer)
-        $percentageChangeVisits = 0;
-        if ($visitsYesterday > 0) {
-            $percentageChangeVisits = (($visitsToday - $visitsYesterday) / $visitsYesterday) * 100;
-        } elseif ($visitsToday > 0) {
-            // Si no hubo visitas ayer pero sí hoy, es un aumento del 100%
-            $percentageChangeVisits = 100;
-        }
-        // Formatear porcentaje para mostrar con un signo
-        $percentageChangeVisitsFormatted = number_format($percentageChangeVisits, 2) . '%';
-        if ($percentageChangeVisits > 0) {
-            $percentageChangeVisitsFormatted = '+' . $percentageChangeVisitsFormatted;
-        }
-
-        // Pasa las variables actualizadas a la vista 'dashboard'
-        return view('dashboard', [
-            'totalUsers' => $totalUsers,
-            'totalVisits' => $totalVisits,
-            'visitsToday' => $visitsToday,
-            'percentageChangeVisits' => $percentageChangeVisitsFormatted,
-            'percentageChangeVisitsRaw' => $percentageChangeVisits, // Útil para lógica de color en la vista // Útil para lógica de color en la vista
-        ]);
+        // Los nombres de las variables en compact() deben coincidir
+        // con los nombres de las variables que se esperan en la vista Blade.
+        return view('dashboard', compact(
+            'TotalUsers', // <-- ¡SOLUCIÓN APLICADA AQUÍ! Coincide con la vista Blade
+            'TotalVisits',
+            'TotalSubscribers',
+        ));
     }
 
     public function myAccount()
@@ -120,15 +106,25 @@ class DashboardController extends Controller
         $currentYear = Carbon::now()->year;
 
         // Obtener ventas por mes del año actual
-        $ventasMensualesColeccion = Venta::selectRaw('MONTH(fecha) as mes, SUM(monto) as total_ventas')
+        $ventasMensualesColeccion = Venta::selectRaw('MONTH(fecha) as mes, SUM(subtotal) as total_ventas')
             ->whereYear('fecha', $currentYear)
             ->groupBy('mes')
             ->orderBy('mes')
             ->pluck('total_ventas', 'mes');
 
         $mesesNombres = [
-            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
-            7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+            1 => 'Enero',
+            2 => 'Febrero',
+            3 => 'Marzo',
+            4 => 'Abril',
+            5 => 'Mayo',
+            6 => 'Junio',
+            7 => 'Julio',
+            8 => 'Agosto',
+            9 => 'Septiembre',
+            10 => 'Octubre',
+            11 => 'Noviembre',
+            12 => 'Diciembre'
         ];
 
         $labelsMeses = [];
@@ -164,12 +160,12 @@ class DashboardController extends Controller
         // Sumar ingresos del mes actual desde 'Venta' para actualizar 'Finanza'
         $totalIngresoMesActualDeVentas = Venta::whereYear('created_at', $currentYear)
             ->whereMonth('created_at', $currentMonth)
-            ->sum('monto');
+            ->sum('subtotal');
 
         // Busca si ya existe un registro de Finanza para el mes actual
         $finanzaMesActual = Finanza::whereYear('fecha', $currentYear)
-                                    ->whereMonth('fecha', $currentMonth)
-                                    ->first();
+            ->whereMonth('fecha', $currentMonth)
+            ->first();
 
         if ($finanzaMesActual) {
             // Si ya existe, actualiza el ingreso para el mes actual en Finanza
@@ -205,8 +201,18 @@ class DashboardController extends Controller
             ->pluck('total_gastos', 'mes');
 
         $mesesNombres = [
-            1 => 'Ene', 2 => 'Feb', 3 => 'Mar', 4 => 'Abr', 5 => 'May', 6 => 'Jun',
-            7 => 'Jul', 8 => 'Ago', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic'
+            1 => 'Ene',
+            2 => 'Feb',
+            3 => 'Mar',
+            4 => 'Abr',
+            5 => 'May',
+            6 => 'Jun',
+            7 => 'Jul',
+            8 => 'Ago',
+            9 => 'Sep',
+            10 => 'Oct',
+            11 => 'Nov',
+            12 => 'Dic'
         ];
 
         $ingresosData = [];
@@ -248,15 +254,15 @@ class DashboardController extends Controller
     private function obtenerVentasPorDia(): float
     {
         $totalDiaActual = Venta::whereDate('fecha', Carbon::today())
-            ->sum('monto');
+            ->sum('subtotal');
 
         return $totalDiaActual;
     }
 
     public function generarPDFVentas()
     {
+        // 1. Configuración básica de TCPDF
         $pdf = new TCPDF();
-
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor('Brinca Este 24 C.A');
         $pdf->SetTitle('Reporte de Ventas');
@@ -267,39 +273,80 @@ class DashboardController extends Controller
         $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
         $pdf->AddPage();
 
-        // Obtener los datos de las ventas
-        $ventas = Venta::all();
+        // 2. Obtener los datos de las ventas con sus productos relacionados
+        $ventas = Venta::with('product')->get();
 
-        // Encabezados de la tabla
+        // Inicializar contadores para los totales
+        $totalVendido = 0;
+        $cantidadTotalProductos = 0;
+        $cantidadCalcetines = 0;   // Contador para calcetines
+        $cantidadBrazaletes = 0;   // Contador para brazaletes
+
+        // 3. Encabezados de la tabla
         $html = '<h1>Reporte de Ventas</h1>';
         $html .= '<table border="1" cellpadding="4"><tr>';
-        $html .= '<th>ID</th>';
-        $html .= '<th>Producto</th>';   // Solo el nombre del producto
-        $html .= '<th>monto</th>';
+        $html .= '<th>ID de Venta</th>';
+        $html .= '<th>Nombre del Producto</th>';
+        $html .= '<th>Precio Unitario</th>';
         $html .= '<th>Cantidad</th>';
-        $html .= '<th>Fecha</th>';
+        $html .= '<th>Subtotal Línea</th>';
+        $html .= '<th>Fecha de Venta</th>';
         $html .= '</tr>';
 
-        // Filas con datos
+        // 4. Filas con datos y cálculo de totales por categoría
         foreach ($ventas as $venta) {
-            // Decodificar el JSON del campo producto
-            $productoArray = json_decode($venta->producto, true);
-            // Obtener solo el nombre o un valor por defecto si no existe
-            $nombreProducto = $productoArray && isset($productoArray['name']) ? $productoArray['name'] : '';
+            $nombreProducto = $venta->product ? $venta->product->name : 'N/A';
+            // Accedemos a la categoría del producto desde la relación
+            $productCategory = $venta->product ? $venta->product->category : null;
 
             $html .= '<tr>';
             $html .= '<td>' . $venta->id . '</td>';
-            $html .= '<td>' . $nombreProducto . '</td>'; // Mostrar solo el nombre
-            $html .= '<td>' . $venta->monto . '</td>';
-            $html .= '<td>' . $venta->cantidad . '</td>';
-            $html .= '<td>' . $venta->fecha . '</td>';
+            $html .= '<td>' . $nombreProducto . '</td>';
+            $html .= '<td>' . number_format($venta->price, 2, ',', '.') . '</td>';
+            $html .= '<td>' . $venta->quantity . '</td>';
+            $html .= '<td>' . number_format($venta->subtotal, 2, ',', '.') . '</td>';
+            $html .= '<td>' . ($venta->fecha ? Carbon::parse($venta->fecha)->format('d/m/Y') : Carbon::parse($venta->created_at)->format('d/m/Y')) . '</td>';
             $html .= '</tr>';
+
+            // Acumular los totales generales
+            $totalVendido += $venta->subtotal;
+            $cantidadTotalProductos += $venta->quantity;
+
+            // Acumular cantidades por las categorías específicas
+            if ($productCategory === 'Calcetines') { // <-- Ajustado a 'calcetines'
+                $cantidadCalcetines += $venta->quantity;
+            } elseif ($productCategory === 'Brazalete') { // <-- Ajustado a 'brazaletes'
+                $cantidadBrazaletes += $venta->quantity;
+            }
         }
 
         $html .= '</table>';
 
+        // 5. Agregar la sección de totales al final del reporte
+        $html .= '<br><br>';
+        $html .= '<table border="0" cellpadding="4">';
+        $html .= '<tr>';
+        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">TOTAL VENDIDO:</td>';
+        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">' . number_format($totalVendido, 2, ',', '.') . '</td>';
+        $html .= '</tr>';
+        $html .= '<tr>';
+        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">CANTIDAD TOTAL DE PRODUCTOS:</td>';
+        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">' . number_format($cantidadTotalProductos, 0, ',', '.') . '</td>';
+        $html .= '</tr>';
+        // Filas para el desglose por categorías específicas
+        $html .= '<tr>';
+        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Calcetines:</td>'; // <-- Etiqueta ajustada
+        $html .= '<td style="width: 20%; text-align: right;">' . number_format($cantidadCalcetines, 0, ',', '.') . '</td>';
+        $html .= '</tr>';
+        $html .= '<tr>';
+        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Brazaletes:</td>'; // <-- Etiqueta ajustada
+        $html .= '<td style="width: 20%; text-align: right;">' . number_format($cantidadBrazaletes, 0, ',', '.') . '</td>';
+        $html .= '</tr>';
+        $html .= '</table>';
+
+        // 6. Escribir HTML y generar PDF
         $pdf->writeHTML($html, true, false, true, false, '');
-        $pdf->Output('reporte_ventas.pdf', 'I'); // Mostrar en navegador
+        $pdf->Output('reporte_ventas.pdf', 'I');
     }
 
     public function obtenerUsuariosYVisitantes()

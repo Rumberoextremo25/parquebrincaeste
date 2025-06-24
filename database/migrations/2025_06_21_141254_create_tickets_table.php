@@ -13,31 +13,23 @@ return new class extends Migration
     {
         Schema::create('tickets', function (Blueprint $table) {
             $table->id();
-            // Si manejas usuarios registrados, puedes enlazar el ticket a un usuario.
-            // Si el usuario no está autenticado al momento de la compra, user_id será nulo.
-            $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
-
-            $table->string('nombre_completo');
-            $table->string('correo');
-            $table->string('telefono')->nullable(); // El teléfono es opcional en la compra, pero útil
-            $table->string('direccion');
-            $table->string('ciudad');
-            $table->string('codigo_postal')->nullable(); // Código postal puede ser opcional dependiendo de tu logística
-
-            $table->string('promo_code')->nullable(); // Para códigos de descuento
-
-            $table->string('payment_method'); // 'in-store' o 'mobile-payment'
-            $table->decimal('monto_total', 10, 2); // Monto total del ticket
-
-            $table->string('status')->default('pending'); // Estado inicial: 'pending', 'completed', 'cancelled', etc.
-            
-            // Campos específicos para pago móvil
-            $table->string('banco_remitente')->nullable();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('order_number')->unique();
+            $table->string('nombre_completo'); // <- Asegúrate de que esto esté aquí
+            $table->string('correo'); // <- Si lo guardas en tickets
+            $table->string('telefono'); // <-
+            $table->string('direccion'); // <-
+            $table->string('ciudad'); // <-
+            $table->string('codigo_postal'); // <-
+            $table->string('promo_code')->nullable(); // Puede ser null
+            $table->string('payment_method');
+            $table->string('status')->default('pending_payment_cash'); // O el default que consideres
+            $table->string('banco_remitente')->nullable(); // Nullable si solo aplica para pago móvil
             $table->string('numero_telefono_remitente')->nullable();
             $table->string('cedula_remitente')->nullable();
-            $table->string('numero_referencia_pago')->nullable()->unique(); // La referencia debe ser única
-
-            $table->timestamps(); // created_at y updated_at
+            $table->string('numero_referencia_pago')->nullable();
+            $table->decimal('monto_total', 10, 2); // DECIMAL para montos monetarios
+            $table->timestamps();
         });
     }
 

@@ -13,21 +13,22 @@ class Ticket extends Model
 
     protected $fillable = [
         'user_id',
-        // 'order_number', // Asegúrate de que esto esté en tu migración si lo usas
-        'nombre_completo',
+        'order_number',
+        'nombre_completo', // ¡Añade este y los demás!
         'correo',
-        'telefono', // Cambiado de 'customer_phone' a 'telefono' según tu migración
-        'direccion', // Cambiado de 'shipping_address' a 'direccion' según tu migración
-        'ciudad', // Cambiado de 'city' a 'ciudad' según tu migración
-        'codigo_postal', // Cambiado de 'postal_code' a 'codigo_postal' según tu migración
+        'telefono',
+        'direccion',
+        'ciudad',
+        'codigo_postal',
         'promo_code',
         'payment_method',
-        'monto_total', // Cambiado de 'total_amount' a 'monto_total' según tu migración
+        'monto_total',
         'status',
-        'banco_remitente', // Cambiado de 'bank_name' a 'banco_remitente' según tu migración
-        'numero_telefono_remitente', // Cambiado de 'sender_phone' a 'numero_telefono_remitente' según tu migración
-        'cedula_remitente', // Cambiado de 'sender_id_number' a 'cedula_remitente' según tu migración
-        'numero_referencia_pago', // Cambiado de 'reference_number' a 'numero_referencia_pago' según tu migración
+        'banco_remitente',
+        'numero_telefono_remitente',
+        'cedula_remitente',
+        'numero_referencia_pago',
+        'factura_id',
     ];
 
     protected $casts = [
@@ -67,5 +68,10 @@ class Ticket extends Model
     public function getTotalProductosCantidadAttribute()
     {
         return $this->ticketItems->sum('quantity');
+    }
+
+    public function factura() // <-- ¡AÑADE ESTE MÉTODO!
+    {
+        return $this->belongsTo(Factura::class, 'factura_id', 'id');
     }
 }

@@ -9,19 +9,32 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
+    public function up(): void
     {
         Schema::create('facturas', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre_completo');
-            $table->string('correo');
-            $table->string('telefono');
-            $table->string('direccion');
-            $table->string('ciudad');
-            $table->string('codigo_postal');
-            $table->string('promoCode')->nullable();
-            $table->string('paymentMethod');
-            $table->decimal('monto', 10, 2);
+            $table->foreignId('ticket_id')->constrained('tickets')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->string('numero_factura')->unique();
+            $table->decimal('monto_total', 10, 2);
+            $table->date('fecha_emision');
+            $table->string('status')->default('pendiente');
+
+            // --- ¡CAMPOS FALTANTES QUE CAUSAN EL ERROR! ---
+            // Estos campos deben existir en tu tabla `facturas`
+            $table->string('nombre_completo')->nullable(); // Si no es siempre requerido
+            $table->string('correo')->nullable();         // Si no es siempre requerido
+            $table->string('telefono')->nullable();       // Si no es siempre requerido
+            $table->string('direccion')->nullable();      // Si no es siempre requerido
+            $table->string('ciudad')->nullable();         // Si no es siempre requerido
+            $table->string('codigo_postal')->nullable();  // Si no es siempre requerido
+
+            // Campos específicos de pago móvil, también nullable en la factura si no aplican a todas
+            $table->string('banco_remitente')->nullable();
+            $table->string('numero_telefono_remitente')->nullable();
+            $table->string('cedula_remitente')->nullable();
+            $table->string('numero_referencia_pago')->nullable();
+
             $table->timestamps();
         });
     }

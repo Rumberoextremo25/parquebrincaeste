@@ -25,7 +25,7 @@ const MyAccount = ({ children, title }) => {
         },
     ];
     return (
-        <Layout title="Perfil">
+        <Layout>
             <BannerHero title={`Bienvenido, ${auth.user.name}`} />
             <div className="container py-section">
                 <div className="grid grid-cols-12 md:gap-4 gap-y-10">

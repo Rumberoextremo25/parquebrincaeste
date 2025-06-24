@@ -2,17 +2,17 @@ import React, { useState, useEffect, Fragment } from 'react';
 import Layout from '@/Layouts/Layout';
 import BannerHero from '@/Components/Hero/BannerHero';
 import Modal from '@/Components/Modal';
-import { Inertia } from '@inertiajs/inertia';
+import { router } from '@inertiajs/react';
 
 const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: initialAvailableBanks }) => {
     const [localCartItems, setLocalCartItems] = useState(initialCartItems);
     const [formData, setFormData] = useState({
         nombre_completo: user?.name || '',
         correo: user?.email || '',
-        telefono: '',
-        direccion: '',
-        ciudad: '',
-        codigo_postal: '',
+        telefono: user?.phone || '',
+        direccion: user?.address || '',
+        ciudad: user?.city || '',
+        codigo_postal: user?.postal_code || '',
         promoCode: '',
         paymentMethod: '',
         banco_remitente: '',
@@ -23,7 +23,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
     });
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-    const [successMessage, setSuccessMessage] = useState(''); // New state for success messages
     const [total, setTotal] = useState(0);
     const [showMobilePaymentInfoModal, setShowMobilePaymentInfoModal] = useState(false);
     const [showMobilePaymentForm, setShowMobilePaymentForm] = useState(false);
@@ -50,6 +49,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                 setShowMobilePaymentInfoModal(true);
                 setShowMobilePaymentForm(true);
             } else {
+                // Cuando se cambia a "Pago en Caja", limpiamos los campos de pago móvil
                 setFormData(prevData => ({
                     ...prevData,
                     banco_remitente: '',
@@ -67,7 +67,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
         e.preventDefault();
         setLoading(true);
         setErrorMessage('');
-        setSuccessMessage(''); // Clear previous success messages
 
         if (localCartItems.length === 0) {
             setErrorMessage('Tu carrito está vacío. Añade productos para continuar.');
@@ -75,38 +74,44 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
             return;
         }
 
-        const dataToSend = {
+        let dataToSend = {
             ...formData,
-            total,
+            monto: total, // Asegúrate de enviar el total calculado en el frontend
             items: localCartItems.map(item => ({
                 product_id: item.id,
                 quantity: item.quantity,
-                price: item.price,
+                price: item.price, // Si el backend valida y recalcula, este 'price' es informativo
             }))
         };
 
-        Inertia.post('/checkout', dataToSend, {
+        // --- INICIO DE LA SOLUCIÓN: Limpiar campos de pago móvil si no son necesarios ---
+        if (dataToSend.paymentMethod !== 'mobile-payment') {
+            dataToSend = {
+                ...dataToSend,
+                banco_remitente: null,
+                numero_telefono_remitente: null,
+                cedula_remitente: null,
+                numero_referencia_pago: null,
+            };
+        }
+        // --- FIN DE LA SOLUCIÓN ---
+
+        router.post('/checkout', dataToSend, {
             onStart: () => setLoading(true),
             onFinish: () => setLoading(false),
-            onSuccess: ({ props }) => {
-                const { paymentMethod } = dataToSend; // Get paymentMethod from the form data
-                if (paymentMethod === 'in-store') {
-                    // Assuming your backend returns an order number in props.order_number on success
-                    setSuccessMessage(`¡Compra exitosa! Lleva tu número de orden ${props.order_number || ''} a la caja para cancelar y retirar tus entradas.`);
-                } else if (paymentMethod === 'mobile-payment') {
-                    setSuccessMessage(`¡Compra exitosa! Lleva tu comprobante de pago y número de orden ${props.order_number || ''} a la caja y retira tus entradas.`);
-                }
-                // Clear cart items on successful checkout
-                setLocalCartItems([]);
-                // Optionally reset form if needed
-                // setFormData(initialFormDataState);
+            onSuccess: () => {
+                setLocalCartItems([]); // Limpia el carrito cuando la operación fue exitosa
             },
             onError: (inertiaErrors) => {
-                if (inertiaErrors && Object.keys(inertiaErrors).length === 0 && !inertiaErrors.checkout) {
-                    setErrorMessage('Hubo un problema al procesar su pedido. Por favor, revise los datos.');
-                    console.error('Inertia Errors:', inertiaErrors);
+                if (typeof inertiaErrors === 'string') {
+                    setErrorMessage(inertiaErrors);
                 } else if (inertiaErrors.checkout) {
                     setErrorMessage(inertiaErrors.checkout);
+                } else if (Object.keys(inertiaErrors).length > 0) {
+                    setErrorMessage('Por favor, revise los campos del formulario para corregir los errores.');
+                    console.error('Inertia Validation Errors:', inertiaErrors);
+                } else {
+                    setErrorMessage('Hubo un problema inesperado al procesar su pedido. Por favor, inténtelo de nuevo más tarde.');
                 }
             },
         });
@@ -120,7 +125,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                 name={name}
                 id={name}
                 required={required}
-                value={value}
+                value={value === null ? '' : value} // Asegúrate de que los valores null se muestren como cadenas vacías
                 onChange={onChange}
                 readOnly={readOnly}
                 placeholder={placeholder}
@@ -159,21 +164,21 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                             <span className="block sm:inline">{errorMessage}</span>
                         </div>}
 
-                        {successMessage && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-                            <strong className="font-bold">¡Éxito!</strong>
-                            <span className="block sm:inline">{successMessage}</span>
-                        </div>}
-
+                        {/* --- INICIO DE LA SOLUCIÓN DEL ERROR 'key' --- */}
                         {Object.keys(errors).length > 0 && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                                 <strong className="font-bold">¡Por favor corrige los siguientes errores!</strong>
                                 <ul className="mt-2 list-disc list-inside">
-                                    {Object.values(errors).map((error, index) => (
-                                        <li key={index}>{error}</li>
-                                    ))}
+                                    {Object.keys(errors).map((key) => {
+                                        const errorMessages = Array.isArray(errors[key]) ? errors[key] : [errors[key]];
+                                        return errorMessages.map((message, index) => (
+                                            <li key={`${key}-${index}`}>{message}</li>
+                                        ));
+                                    })}
                                 </ul>
                             </div>
                         )}
+                        {/* --- FIN DE LA SOLUCIÓN DEL ERROR 'key' --- */}
 
                         <form className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" onSubmit={handleSubmit}>
                             <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Detalles del Cliente</h2>
@@ -185,7 +190,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                                     label={field === 'nombre_completo' ? 'Nombre Completo' : field === 'correo' ? 'Correo Electrónico' : 'Número de Teléfono'}
                                     value={formData[field]}
                                     onChange={handleChange}
-                                    required
+                                    required={field !== 'telefono'}
                                     error={errors[field]}
                                 />
                             ))}
@@ -199,7 +204,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                                     label={field === 'direccion' ? 'Dirección' : field === 'ciudad' ? 'Ciudad' : 'Código Postal'}
                                     value={formData[field]}
                                     onChange={handleChange}
-                                    required
+                                    required={field !== 'codigo_postal'}
                                     error={errors[field]}
                                 />
                             ))}

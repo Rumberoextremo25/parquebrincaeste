@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Factura;
 use App\Models\Product;
 use App\Models\Promotion;
 use App\Models\Ticket;
@@ -39,14 +40,12 @@ class CheckoutController extends Controller
         ]);
     }
 
-    /**
-     * Store the order information in the database, including 'tickets', 'ticket_items', and 'ventas'.
-     *
-     * @param Request $request
-     * @return \Inertia\Response|\Illuminate\Http\RedirectResponse
-     */
     public function store(Request $request)
     {
+        // Inicializar $validatedData al principio para satisfacer a Intelephense (buena práctica)
+        $validatedData = [];
+        $finalAmount = 0; // Inicializar también finalAmount
+
         try {
             if (empty($request->input('items'))) {
                 throw new Exception('El carrito de compras está vacío. Por favor, añada productos.');
@@ -56,13 +55,13 @@ class CheckoutController extends Controller
             $rules = [
                 'nombre_completo' => 'required|string|max:255',
                 'correo' => 'required|email|max:255',
-                'telefono' => 'required|string|max:20',
+                'telefono' => 'nullable|string|max:20',
                 'direccion' => 'required|string|max:255',
                 'ciudad' => 'required|string|max:100',
-                'codigo_postal' => 'required|string|max:10',
+                'codigo_postal' => 'nullable|string|max:10',
                 'promoCode' => 'nullable|string|max:50',
                 'paymentMethod' => 'required|string|in:in-store,mobile-payment',
-                'monto' => 'required|numeric|min:0',
+                'monto' => 'required|numeric|min:0', // Este es el monto que viene del frontend
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|integer|exists:products,id',
                 'items.*.quantity' => 'required|integer|min:1',
@@ -74,19 +73,18 @@ class CheckoutController extends Controller
                     'banco_remitente' => 'required|string|max:255',
                     'numero_telefono_remitente' => 'required|string|max:20',
                     'cedula_remitente' => 'required|string|max:20',
-                    'numero_referencia_pago' => 'required|string|max:50',
+                    'numero_referencia_pago' => 'required|string|max:50|unique:tickets,numero_referencia_pago',
                 ]);
             }
 
             $validatedData = $request->validate($rules);
 
-            DB::beginTransaction(); // Start a database transaction
-
+            // Aseguramos que $finalAmount siempre se defina
             $totalCalculatedBackend = 0;
             $itemsForTicket = [];
-            $itemsForVenta = []; // New array to prepare data for the 'ventas' table
+            $itemsForVenta = [];
 
-            // --- Revalidate and Calculate Total on Backend ---
+            // --- Revalidar y Calcular Total en Backend ---
             foreach ($validatedData['items'] as $itemData) {
                 $product = Product::find($itemData['product_id']);
                 if (!$product) {
@@ -104,48 +102,48 @@ class CheckoutController extends Controller
                     'subtotal' => $itemSubtotal,
                 ];
 
-                // Prepare data for the 'ventas' table
                 $itemsForVenta[] = [
                     'product_id' => $product->id,
                     'quantity' => $quantity,
                     'price' => $itemPrice,
-                    'subtotal' => $itemSubtotal, // Assuming 'subtotal' or 'total' per item in 'ventas'
-                    // Add any other fields required by your 'ventas' table (e.g., date, user_id, order_id)
+                    'subtotal' => $itemSubtotal,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
             }
 
-            // Apply promotion if it exists
+            // Aplicar promoción si existe
             $descuento = $this->applyPromotion($validatedData['promoCode'] ?? null, $totalCalculatedBackend);
             $finalAmount = $totalCalculatedBackend - $descuento;
 
-            // Security validation for the amount
+            // Validación de seguridad para el monto final
             if (abs($validatedData['monto'] - $finalAmount) > 0.02) {
-                throw new Exception("Error de cálculo del monto final. El monto enviado no coincide con el calculado.");
+                throw new Exception("Error de cálculo del monto final. El monto enviado no coincide con el calculado en el servidor.");
             }
 
-            // --- Create the Ticket (Order) ---
+            DB::beginTransaction(); // Inicia una transacción de base de datos
+
+            // --- Crear el Ticket (Orden) ---
             $ticket = Ticket::create([
                 'user_id' => $request->user() ? $request->user()->id : null,
                 'order_number' => 'ORD-' . Str::upper(Str::random(10)),
-                'customer_name' => $validatedData['nombre_completo'],
-                'customer_email' => $validatedData['correo'],
-                'customer_phone' => $validatedData['telefono'],
-                'shipping_address' => $validatedData['direccion'],
-                'city' => $validatedData['ciudad'],
-                'postal_code' => $validatedData['codigo_postal'],
+                'nombre_completo' => $validatedData['nombre_completo'],
+                'correo' => $validatedData['correo'],
+                'telefono' => $validatedData['telefono'] ?? null,
+                'direccion' => $validatedData['direccion'],
+                'ciudad' => $validatedData['ciudad'],
+                'codigo_postal' => $validatedData['codigo_postal'] ?? null,
                 'promo_code' => $validatedData['promoCode'] ?? null,
+                'monto_total' => $finalAmount,
                 'payment_method' => $validatedData['paymentMethod'],
-                'total_amount' => $finalAmount,
                 'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_cash',
-                'bank_name' => $validatedData['banco_remitente'] ?? null,
-                'sender_phone' => $validatedData['numero_telefono_remitente'] ?? null,
-                'sender_id_number' => $validatedData['cedula_remitente'] ?? null,
-                'reference_number' => $validatedData['numero_referencia_pago'] ?? null,
+                'banco_remitente' => $validatedData['banco_remitente'] ?? null,
+                'numero_telefono_remitente' => $validatedData['numero_telefono_remitente'] ?? null,
+                'cedula_remitente' => $validatedData['cedula_remitente'] ?? null,
+                'numero_referencia_pago' => $validatedData['numero_referencia_pago'] ?? null,
             ]);
 
-            // --- Create Ticket Items ---
+            // --- Crear Ticket Items ---
             foreach ($itemsForTicket as $item) {
                 TicketItem::create([
                     'ticket_id' => $ticket->id,
@@ -156,60 +154,84 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            // --- Create Venta Records ---
-            // If Venta model represents individual line items from a sale,
-            // you might need to relate it to the ticket as well, or update its schema.
-            // For now, I'll assume Venta can stand alone for simpler recording,
-            // but consider adding `ticket_id` to your `ventas` table for better relational integrity.
+            // --- CREAR LA FACTURA DIRECTAMENTE AQUÍ ---
+            $numeroFactura = 'FAC-' . Str::upper(Str::random(8)) . '-' . $ticket->id;
+
+            $factura = Factura::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => $request->user() ? $request->user()->id : null,
+                'numero_factura' => $numeroFactura,
+                'monto_total' => $finalAmount,
+                'fecha_emision' => now(),
+                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_cash',
+                // --- CAMBIO DEFENSIVO: Usar ?? null aquí ---
+                'nombre_completo' => $validatedData['nombre_completo'] ?? null,
+                'correo' => $validatedData['correo'] ?? null,
+                'telefono' => $validatedData['telefono'] ?? null,
+                'direccion' => $validatedData['direccion'] ?? null,
+                'ciudad' => $validatedData['ciudad'] ?? null,
+                'codigo_postal' => $validatedData['codigo_postal'] ?? null,
+                'banco_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['banco_remitente'] ?? null) : null,
+                'numero_telefono_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['numero_telefono_remitente'] ?? null) : null,
+                'cedula_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['cedula_remitente'] ?? null) : null,
+                'numero_referencia_pago' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['numero_referencia_pago'] ?? null) : null,
+            ]);
+
+            // Si tu tabla `tickets` tiene `factura_id`, asegúrate de actualizarlo:
+            $ticket->factura_id = $factura->id;
+            $ticket->save();
+
+            // --- Crear Registros de Venta ---
             foreach ($itemsForVenta as $item) {
-                // Assuming 'ventas' table does NOT have a 'ticket_id' directly,
-                // and you just want to record the sale.
-                // If 'ventas' has a 'factura_id' or 'order_id', you'd set it here.
-                // Example if your Venta table also has a user_id:
                 $ventaData = [
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                     'subtotal' => $item['subtotal'],
-                    'user_id' => $request->user() ? $request->user()->id : null, // Assuming ventas might also link to user
-                    'ticket_id' => $ticket->id, // Consider adding this column to your 'ventas' table
-                    'order_number' => $ticket->order_number, // Or this
+                    'user_id' => $request->user() ? $request->user()->id : null,
+                    'ticket_id' => $ticket->id,
+                    'order_number' => $ticket->order_number,
+                    'factura_id' => $factura->id,
+                    'fecha' => now()->toDateString(),
                 ];
                 Venta::create($ventaData);
             }
 
-            DB::commit(); // Confirm the transaction
+            DB::commit(); // Confirma la transacción
 
-            // Clear the cart from the session
+            // Limpia el carrito de la sesión
             try {
                 session()->forget('cartItems');
             } catch (Exception $e) {
                 Log::error('Error al limpiar el carrito de la sesión: ' . $e->getMessage());
             }
 
-            // --- Redirect to Success View ---
-            return Inertia::render('Checkout/Success', [
+            // --- Redireccionar a la vista de éxito con datos flasheados ---
+            return redirect()->route('success')->with([
                 'order_number' => $ticket->order_number,
                 'payment_method' => $validatedData['paymentMethod'],
+                'factura_id' => $factura->id,
+                'total_amount' => $finalAmount,
             ]);
 
         } catch (ValidationException $e) {
-            DB::rollBack();
+            // El rollback solo se intenta si la transacción ya había comenzado.
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
-            DB::rollBack();
+            // El rollback solo se intenta si la transacción ya había comenzado.
+            //dd($e);
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             Log::error('Error en el proceso de checkout: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return redirect()->back()->withErrors(['checkout' => $e->getMessage() ?? 'Hubo un problema inesperado al procesar su pedido. Por favor, inténtelo de nuevo más tarde.'])->withInput();
+            // dd($e->getMessage()); // Descomentar para ver el error exacto si persiste
+            return redirect()->back()->withErrors(['checkout' => 'Hubo un problema inesperado al procesar su pedido. Por favor, inténtelo de nuevo más tarde.'])->withInput();
         }
     }
 
-    /**
-     * Applies a promotion to the given amount if the code is valid.
-     *
-     * @param  string|null  $promoCode
-     * @param  float  $amount
-     * @return float The discount amount
-     */
     private function applyPromotion(?string $promoCode, float $amount): float
     {
         if (empty($promoCode)) {
@@ -217,8 +239,8 @@ class CheckoutController extends Controller
         }
 
         $promotion = Promotion::where('code', $promoCode)
-                             ->where('is_active', true)
-                             ->first();
+            ->where('is_active', true)
+            ->first();
 
         if (!$promotion) {
             return 0;
@@ -244,22 +266,5 @@ class CheckoutController extends Controller
         }
 
         return min($discount, $amount);
-    }
-
-    /**
-     * Displays the checkout success page.
-     *
-     * @param Request $request
-     * @return \Inertia\Response
-     */
-    public function success(Request $request)
-    {
-        $orderNumber = $request->query('order_number') ?? session('order_number');
-        $paymentMethod = $request->query('payment_method') ?? session('payment_method');
-
-        return Inertia::render('Checkout/Success', [
-            'order_number' => $orderNumber,
-            'payment_method' => $paymentMethod,
-        ]);
     }
 }

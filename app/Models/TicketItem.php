@@ -16,7 +16,7 @@ class TicketItem extends Model
         'product_id',
         'quantity',
         'price',
-        // 'subtotal', // Asegúrate de que 'subtotal' esté realmente en tu migración si quieres usarlo
+        'subtotal',
     ];
 
     protected $casts = [

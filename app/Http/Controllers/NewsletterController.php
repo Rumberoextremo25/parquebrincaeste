@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;  
 use App\Models\Subscriber;  
 use Illuminate\Support\Facades\Validator;  
-use App\Mail\NewsletterSubscribed; // Asegúrate de incluir el Mailable  
-use Illuminate\Support\Facades\Mail; // Importa la clase Mail
+use App\Mail\NewsletterSubscribed;  
+use Illuminate\Support\Facades\Mail;
 
 class NewsletterController extends Controller
 {
