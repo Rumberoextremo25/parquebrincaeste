@@ -19,6 +19,11 @@ $navigations_1 = [
         'name' => 'Finanzas',  
         'route' => route('dashboard.finanzas'),  
         'icon' => 'heroicon-s-chart-bar',  
+    ],
+    [  
+        'name' => 'Tickets',  
+        'route' => route('dashboard.tickets'),  
+        'icon' => 'heroicon-o-ticket',  
     ],  
 ];
 @endphp  

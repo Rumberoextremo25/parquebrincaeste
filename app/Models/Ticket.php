@@ -70,8 +70,9 @@ class Ticket extends Model
         return $this->ticketItems->sum('quantity');
     }
 
-    public function factura() // <-- ¡AÑADE ESTE MÉTODO!
+    // Un ticket tiene una factura
+    public function factura()
     {
-        return $this->belongsTo(Factura::class, 'factura_id', 'id');
+        return $this->hasOne(Factura::class); // Laravel infiere foreign_key 'ticket_id' en Factura
     }
 }

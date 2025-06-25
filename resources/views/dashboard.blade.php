@@ -24,8 +24,8 @@
                             <i class="bi bi-person-fill fs-2 me-3 text-white-75"></i> {{-- Icono de Bootstrap Icons --}}
                             <h5 class="card-title mb-0 fw-semibold">Usuarios Registrados</h5>
                         </div>
-                        {{-- Opción 1: Usar number_format para un formato de número más legible (ej. 1,234) --}}
-                        <p class="display-3 mb-0 fw-bold">{{ number_format($TotalUsers ?? 0, 0, ',', '.') }}</p>
+                        {{-- Asegúrate de que $TotalUsers se pasa desde el controlador con este nombre --}}
+                        <p class="display-3 mb-0 fw-bold">{{ $TotalUsers ?? 0 }}</p> {{-- Tamaño de texto más grande --}}
                         <small class="text-white-50">Total de usuarios en el sistema</small>
                     </div>
                 </div>
@@ -39,12 +39,8 @@
                             <i class="bi bi-graph-up-arrow fs-2 me-3 text-white-75"></i> {{-- Icono de Bootstrap Icons --}}
                             <h5 class="card-title mb-0 fw-semibold">Visitas Totales</h5>
                         </div>
-                        {{-- Opción 2: Usar una estructura @if/@else para control condicional más explícito --}}
-                        @if (isset($TotalVisits) && $TotalVisits > 0)
-                            <p class="display-3 mb-0 fw-bold">{{ number_format($TotalVisits, 0, ',', '.') }}</p>
-                        @else
-                            <p class="display-3 mb-0 fw-bold">0</p>
-                        @endif
+                        {{-- Asegúrate de que $TotalVisits se pasa desde el controlador con este nombre --}}
+                        <p class="display-3 mb-0 fw-bold">{{ $TotalVisits ?? 0 }}</p>
                         <small class="text-white-50">Total de visitas registradas</small>
                     </div>
                 </div>
@@ -58,12 +54,8 @@
                             <i class="bi bi-newspaper fs-2 me-3 text-white-75"></i> {{-- Icono de Bootstrap Icons --}}
                             <h5 class="card-title mb-0 fw-semibold">Suscriptores Newsletter</h5>
                         </div>
-                        {{-- Opción 3: Mostrar un mensaje si es cero o no está definido --}}
-                        @empty($TotalSubscribers)
-                            <p class="display-3 mb-0 fw-bold">N/A</p> {{-- O 0, o un mensaje diferente --}}
-                        @else
-                            <p class="display-3 mb-0 fw-bold">{{ number_format($TotalSubscribers, 0, ',', '.') }}</p>
-                        @endempty
+                        {{-- Asegúrate de que $TotalSubscribers se pasa desde el controlador con este nombre --}}
+                        <p class="display-3 mb-0 fw-bold">{{ $TotalSubscribers ?? 0 }}</p>
                         <small class="text-white-50">Personas interesadas en tus novedades</small>
                     </div>
                 </div>

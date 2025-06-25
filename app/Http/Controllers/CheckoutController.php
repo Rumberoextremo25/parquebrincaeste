@@ -212,6 +212,7 @@ class CheckoutController extends Controller
                 'payment_method' => $validatedData['paymentMethod'],
                 'factura_id' => $factura->id,
                 'total_amount' => $finalAmount,
+                'numero_factura' => $factura->numero_factura,
             ]);
 
         } catch (ValidationException $e) {

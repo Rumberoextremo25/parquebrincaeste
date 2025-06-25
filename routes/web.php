@@ -81,11 +81,13 @@ Route::get('/success/success', function (Request $request) {
 
 
 
-// Rutas para el controlador de facturas
-Route::get('/invoice/{factura}/download', [InvoiceController::class, 'downloadInvoice'])->name('invoice.download');
+// This route handles downloading invoices by their 'numero_factura'
+Route::get('/invoice/numero/{order_number}/download', [InvoiceController::class, 'downloadInvoiceByNumber'])
+    ->name('invoice.download.number');
 
-// Rutas para el controlador de compras exitosas
-Route::get('/purchase-success', [InvoiceController::class, 'purchaseSuccess'])->name('invoice.purchaseSuccess');
+// This route handles downloading invoices by their 'ID' (if you're using this too)
+Route::get('/invoice/{factura}/download', [InvoiceController::class, 'downloadInvoiceById'])
+    ->name('invoice.download.id');
 
 
 //Rutas del Controlador Pages
@@ -123,6 +125,9 @@ Route::get('/finanzas/pdf', [DashboardController::class, 'generarPDFFinanzas'])-
 
 
 Route::get('/dashboard', [DashboardController::class, 'home'])->name('dashboard');
+
+// PARA VER LOS TICKETS CREADOS
+Route::get('/tickets', [DashboardController::class, 'tickets'])->name('dashboard.tickets');
 
 // Rutas para el Dashboard del Usuario
 Route::post('/dashboard/update-account', [DashboardController::class, 'updateAccount'])->name('update_account');

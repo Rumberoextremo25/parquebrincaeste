@@ -32,7 +32,7 @@ class Factura extends Model
     // ... (Tus relaciones si las tienes) ...
     public function ticket()
     {
-        return $this->belongsTo(Ticket::class);
+        return $this->belongsTo(Ticket::class); // Laravel infiere foreign_key 'ticket_id' en Factura
     }
 
     public function user()

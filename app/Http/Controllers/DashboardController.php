@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Factura;
 use App\Models\Subscriber;
+use App\Models\Ticket;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
@@ -12,6 +14,7 @@ use App\Models\Venta;
 use App\Http\Controllers\Controller;
 use TCPDF;
 use App\Models\Finanza;
+use App\Models\Product;
 use App\Models\Visita;
 use Illuminate\Contracts\View\View;
 
@@ -19,27 +22,14 @@ class DashboardController extends Controller
 {
     public function home(Request $request): View
     {
-        // Puedes obtener el usuario autenticado si lo necesitas en el controlador
-        // $user = Auth::user();
-
-        // Obtener el total de usuarios registrados desde la tabla 'users'
-        $TotalUsers = User::count(); // Cambiado a $TotalUsers para consistencia
-
-        // Obtener el total de visitas registradas desde la tabla 'visitas'
-        // Si no tienes un modelo 'Visit' o tabla 'visitas', puedes inicializar a 0 o manejar de otra forma
+        $TotalUsers = User::count();
         $TotalVisits = Visita::count();
-
-        // Obtener el total de suscriptores del newsletter desde la tabla 'subscribers'
-        // Si no tienes un modelo 'Subscriber' o tabla 'subscribers', puedes inicializar a 0 o manejar de otra forma
         $TotalSubscribers = Subscriber::count();
 
-        // Los nombres de las variables en compact() deben coincidir
-        // con los nombres de las variables que se esperan en la vista Blade.
-        return view('dashboard', compact(
-            'TotalUsers', // <-- ¡SOLUCIÓN APLICADA AQUÍ! Coincide con la vista Blade
-            'TotalVisits',
-            'TotalSubscribers',
-        ));
+        return view('dashboard')
+            ->with('TotalUsers', $TotalUsers)          // Coincide con $TotalUsers en la vista
+            ->with('TotalVisits', $TotalVisits)        // Coincide con $TotalVisits en la vista
+            ->with('TotalSubscribers', $TotalSubscribers); // Coincide con $TotalSubscribers en la vista
     }
 
     public function myAccount()
@@ -375,5 +365,14 @@ class DashboardController extends Controller
         $usuario = User::count();
         $visitante = Visita::distinct('ip')->count('ip');
         return view('dashboard', compact('usuario', 'visitante'));
+    }
+
+    public function tickets()
+    {
+        $tickets = Ticket::paginate(20);
+        $factura = Factura::all();
+        $products = Product::all();
+
+        return view('tickets', compact('tickets', 'factura', 'products'));
     }
 }

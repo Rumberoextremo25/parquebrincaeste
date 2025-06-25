@@ -1,13 +1,15 @@
 <?php
 
-namespace App\Http\Controllers; // ¡VERIFICA ESTE NAMESPACE! (puede ser `App\Http\Controllers\Api` si lo tienes en una subcarpeta)
+namespace App\Http\Controllers;
 
-use App\Models\Factura; // Asegúrate de importar tu modelo Factura
-use App\Models\Ticket; // Se necesita si Factura no tiene la relación directa a Ticket
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Para verificar la autenticación
+use Illuminate\View\View; // Aunque no se usa directamente aquí, es buena práctica
+use App\Models\Factura;
+use App\Models\Ticket; // ¡Asegúrate de importar el modelo Ticket!
+use App\Models\User; // Si lo usas para Auth
+use Illuminate\Support\Facades\Auth;
+use TCPDF;
 use Carbon\Carbon; // Para formatear fechas
-use TCPDF; // Necesitamos importar TCPDF
 
 class InvoiceController extends Controller
 {
@@ -38,21 +40,18 @@ class InvoiceController extends Controller
      * Descarga el comprobante de la factura en formato PDF por su número de factura.
      * La factura se muestra directamente en el navegador.
      *
-     * @param string $numeroFactura El número único de la factura.
+     * @param string $numeroFactura El número único de la factura (que ahora se buscará en Ticket).
      * @return \Illuminate\Http\Response
      */
     public function downloadInvoiceByNumber(string $numeroFactura)
     {
-        // Buscar la factura por su numero_factura
+        // Buscar la factura directamente por su numero_factura en la tabla Factura
         $factura = Factura::where('numero_factura', $numeroFactura)->firstOrFail();
 
         // Lógica de autorización:
-        // Asegúrate de que solo el propietario de la factura o un administrador puedan descargarla.
         if (Auth::check() && $factura->user_id !== null && Auth::id() !== $factura->user_id) {
             abort(403, 'Acceso no autorizado para descargar esta factura. No eres el propietario.');
-        }
-        // Si no hay usuario autenticado y la descarga requiere autenticación
-        else if (!Auth::check() && $factura->user_id !== null) { // Requiere que la factura tenga user_id para esta restricción
+        } else if (!Auth::check() && $factura->user_id !== null) {
             abort(401, 'Debes estar autenticado para descargar esta factura.');
         }
 
@@ -75,12 +74,11 @@ class InvoiceController extends Controller
         // Configuración básica del documento PDF
         $pdf->SetCreator(PDF_CREATOR);
         $pdf->SetAuthor('Brinca Este 24 C.A');
-        $pdf->SetTitle('Comprobante de Compra - Factura #' . ($factura->numero_factura ?? $factura->id)); // Título dinámico
+        $pdf->SetTitle('Comprobante de Compra - Factura #' . ($factura->numero_factura ?? $factura->id));
         $pdf->SetSubject('Comprobante de Compra');
         $pdf->SetKeywords('Factura, Comprobante, Compra, Brinca Este');
 
         // Configuración de encabezado y pie de página
-        // PDF_HEADER_LOGO y PDF_HEADER_LOGO_WIDTH deben estar definidos en config/tcpdf.php o definirlos aquí
         $pdf->SetHeaderData(PDF_HEADER_LOGO, PDF_HEADER_LOGO_WIDTH, 'Comprobante de Compra', 'Brinca Este 24 C.A.');
         $pdf->setHeaderFont(array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
         $pdf->setFooterFont(array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
@@ -88,7 +86,7 @@ class InvoiceController extends Controller
         // Márgenes
         $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
         $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
-        $pdf->setFooterMargin(PDF_MARGIN_FOOTER);
+        $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
 
         // Salto de página automático
         $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
@@ -106,11 +104,9 @@ class InvoiceController extends Controller
         $pdf->AddPage();
 
         // Obtener detalles adicionales para la factura (ticket y sus items)
-        // Usamos loadMissing para cargar las relaciones si no están ya cargadas
         $factura->loadMissing(['ticket.ticketItems.product']);
 
-        $ticket = $factura->ticket; // Acceder al ticket asociado
-        // Acceder a los ítems del ticket a través de la relación ya cargada, o una colección vacía si no hay ticket.
+        $ticket = $factura->ticket;
         $ticketItems = $ticket ? $ticket->ticketItems : collect();
 
         // Construcción del contenido HTML para el PDF
@@ -148,9 +144,9 @@ class InvoiceController extends Controller
             </thead>
             <tbody>';
 
-            if ($ticketItems->isNotEmpty()) {
-                foreach ($ticketItems as $item) {
-                    $html .= '
+        if ($ticketItems->isNotEmpty()) {
+            foreach ($ticketItems as $item) {
+                $html .= '
                     <tr>
                         <td style="width: 10%; text-align: center; border: 1px solid #ddd;">' . ($item->product_id ?? 'N/A') . '</td>
                         <td style="width: 40%; border: 1px solid #ddd;">' . ($item->product ? $item->product->name : 'Producto Desconocido') . '</td>
@@ -158,13 +154,13 @@ class InvoiceController extends Controller
                         <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format(($item->price ?? 0), 2, ',', '.') . '</td>
                         <td style="width: 20%; text-align: right; border: 1px solid #ddd;">$' . number_format(($item->subtotal ?? 0), 2, ',', '.') . '</td>
                     </tr>';
-                }
-            } else {
-                $html .= '<tr><td colspan="5" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>';
             }
+        } else {
+            $html .= '<tr><td colspan="5" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>';
+        }
 
 
-            $html .= '
+        $html .= '
             </tbody>
         </table>
         <br>
