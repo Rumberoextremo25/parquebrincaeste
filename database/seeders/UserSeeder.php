@@ -22,6 +22,7 @@ class UserSeeder extends Seeder
          */
         $superAdminRole = Role::firstOrCreate(['name' => 'super-admin']);
         $userRole = Role::firstOrCreate(['name' => 'user']);
+        $userRole = Role::firstOrCreate(['name' => 'caja']);
 
         /**
          * Creación de permisos
@@ -53,6 +54,21 @@ class UserSeeder extends Seeder
                 'name' => 'user generic',
                 'active' => 1,
                 'phone' => '1234567890',
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'),
+            ]
+        );
+        $genericUser->assignRole($userRole);
+
+        /**
+         * Creación de usuario generico
+         */
+        $genericUser = User::firstOrCreate(
+            ['email' => 'cajasbrincaeste@gmail.com'],
+            [
+                'name' => 'Cajeros',
+                'active' => 1,
+                'phone' => 'Brincaeste2024',
                 'email_verified_at' => now(),
                 'password' => Hash::make('password'),
             ]
