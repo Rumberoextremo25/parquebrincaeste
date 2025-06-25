@@ -114,7 +114,6 @@ Route::post('/contact-us/save', [ContactController::class, 'save'])->name('conta
 Route::post('/web/newsletter', [NewsletterController::class, 'subscribe']);
 
 //Rutas para sidebar Dashboard - Administrador
-Route::get('/dashboard', [DashboardController::class, 'home'])->name('dashboard.home');
 Route::get('/my-account', [DashboardController::class, 'myAccount'])->name('dashboard.my_account');
 Route::get('/ventas', [DashboardController::class, 'ventas'])->name('dashboard.ventas');
 Route::get('/finanzas', [DashboardController::class, 'finanzas'])->name('dashboard.finanzas');
@@ -124,7 +123,7 @@ Route::get('/ventas/pdf', [DashboardController::class, 'generarPDFVentas'])->nam
 Route::get('/finanzas/pdf', [DashboardController::class, 'generarPDFFinanzas'])->name('finanzas.pdf');
 
 
-Route::get('/dashboard', [DashboardController::class, 'home'])->name('dashboard');
+Route::get('/dashboard-admin', [DashboardController::class, 'home'])->name('dashboard-admin');
 
 // PARA VER LOS TICKETS CREADOS
 Route::get('/tickets', [DashboardController::class, 'tickets'])->name('dashboard.tickets');
@@ -159,7 +158,7 @@ Route::middleware(['auth'])->prefix('dashboard')->name('dashboard.')->group(func
 
     Route::get('/', function () {
         if (auth()->user()->hasRole('super-admin')) {
-            return view('dashboard'); // Carga la vista del dashboard para super-admin
+            return redirect()->route('dashboard-admin'); // Carga la vista del dashboard para super-admin
         }
         return redirect()->route('home'); // Redirige a home si no es super-admin
     })->name('home');
