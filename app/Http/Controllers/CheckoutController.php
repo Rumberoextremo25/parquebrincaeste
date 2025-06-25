@@ -2,193 +2,246 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Factura; // Asegúrate de importar tus modelos
-use App\Models\Venta;
-use App\Models\Product; // ¡Importante para revalidar los precios!
-use Illuminate\Http\Request;
-use Inertia\Inertia;
+use App\Models\Factura;
+use App\Models\Product;
 use App\Models\Promotion;
+use App\Models\Ticket;
+use App\Models\TicketItem;
+use App\Models\Venta; // Import the Venta model
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log; // ¡Asegúrate de que esta línea esté presente!
-use Exception; // Para manejar excepciones de forma más clara
-use Illuminate\Validation\ValidationException; 
-use Inertia\Response;// Importar la clase de excepción de validación
+use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
+use Exception;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
 class CheckoutController extends Controller
 {
+    /**
+     * Display the checkout form.
+     *
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function index(Request $request)
     {
         $user = $request->user();
-
         $cartItems = session()->get('cartItems', []);
 
-        // *Mejora Opcional:* Si el carrito está vacío, podrías redirigir al usuario
-        // de vuelta a la tienda o mostrar un mensaje.
         if (empty($cartItems)) {
-
+            // Optional: Handle empty cart, e.g., redirect
         }
 
         return Inertia::render('Checkout/Checkout', [
-            'cartItems' => $cartItems, // Se pasan los items para que el frontend los use como initialCartItems
-            'user' => $user, // Datos del usuario autenticado
+            'cartItems' => $cartItems,
+            'user' => $user ? $user->toArray() : null,
+            'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : [],
         ]);
     }
 
     public function store(Request $request)
     {
+        // Inicializar $validatedData al principio para satisfacer a Intelephense (buena práctica)
+        $validatedData = [];
+        $finalAmount = 0; // Inicializar también finalAmount
+
         try {
-            // --- VALIDACIÓN DE DATOS DEL FORMULARIO DE CHECKOUT ---
-            $validatedData = $request->validate([
+            if (empty($request->input('items'))) {
+                throw new Exception('El carrito de compras está vacío. Por favor, añada productos.');
+            }
+
+            // --- Base Validation for all payment methods ---
+            $rules = [
                 'nombre_completo' => 'required|string|max:255',
                 'correo' => 'required|email|max:255',
-                'telefono' => 'required|string|max:20',
+                'telefono' => 'nullable|string|max:20',
                 'direccion' => 'required|string|max:255',
                 'ciudad' => 'required|string|max:100',
-                'codigo_postal' => 'required|string|max:10',
+                'codigo_postal' => 'nullable|string|max:10',
                 'promoCode' => 'nullable|string|max:50',
-                'paymentMethod' => 'required|string|in:mobile-payment,in-store',
-                'monto' => 'required|numeric|min:0', // El monto enviado desde el frontend (se revalidará)
+                'paymentMethod' => 'required|string|in:in-store,mobile-payment',
+                'monto' => 'required|numeric|min:0', // Este es el monto que viene del frontend
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|integer|exists:products,id',
+                'items.*.quantity' => 'required|integer|min:1',
+            ];
 
-                // --- CAMPOS ESPECÍFICOS PARA PAGO MÓVIL (REQUIRED_IF) ---
-                'banco_remitente' => 'nullable|string|max:100|required_if:paymentMethod,mobile-payment',
-                'numero_telefono_remitente' => 'nullable|string|max:20|required_if:paymentMethod,mobile-payment',
-                'cedula_remitente' => 'nullable|string|max:20|required_if:paymentMethod,mobile-payment',
-                'numero_referencia_pago' => 'nullable|string|max:50|required_if:paymentMethod,mobile-payment',
-            ]);
+            // --- Conditional Validation for Mobile Payment ---
+            if ($request->input('paymentMethod') === 'mobile-payment') {
+                $rules = array_merge($rules, [
+                    'banco_remitente' => 'required|string|max:255',
+                    'numero_telefono_remitente' => 'required|string|max:20',
+                    'cedula_remitente' => 'required|string|max:20',
+                    'numero_referencia_pago' => 'required|string|max:50|unique:tickets,numero_referencia_pago',
+                ]);
+            }
 
-            DB::beginTransaction(); // Iniciar una transacción
+            $validatedData = $request->validate($rules);
 
+            // Aseguramos que $finalAmount siempre se defina
             $totalCalculatedBackend = 0;
-            $itemsForFactura = [];
+            $itemsForTicket = [];
+            $itemsForVenta = [];
 
-            // --- REVALIDAR Y CALCULAR EL TOTAL EN EL BACKEND (CRUCIAL POR SEGURIDAD) ---
+            // --- Revalidar y Calcular Total en Backend ---
             foreach ($validatedData['items'] as $itemData) {
-                $product = Product::findOrFail($itemData['product_id']); // Obtener el producto de la DB
+                $product = Product::find($itemData['product_id']);
+                if (!$product) {
+                    throw new Exception("Producto con ID {$itemData['product_id']} no encontrado.");
+                }
                 $quantity = $itemData['quantity'];
-
-                $itemSubtotal = $product->price * $quantity;
+                $itemPrice = $product->price;
+                $itemSubtotal = $itemPrice * $quantity;
                 $totalCalculatedBackend += $itemSubtotal;
 
-                $itemsForFactura[] = [
+                $itemsForTicket[] = [
                     'product_id' => $product->id,
-                    'cantidad' => $quantity,
-                    'precio' => $product->price,
+                    'quantity' => $quantity,
+                    'price' => $itemPrice,
                     'subtotal' => $itemSubtotal,
+                ];
+
+                $itemsForVenta[] = [
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'price' => $itemPrice,
+                    'subtotal' => $itemSubtotal,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             }
 
-            // Aplicar promoción si existe (al total calculado en el backend)
+            // Aplicar promoción si existe
             $descuento = $this->applyPromotion($validatedData['promoCode'] ?? null, $totalCalculatedBackend);
-            $montoFinal = $totalCalculatedBackend - $descuento;
+            $finalAmount = $totalCalculatedBackend - $descuento;
 
-            // Validación de seguridad para el monto
-            if (abs($validatedData['monto'] - $montoFinal) > 0.01) {
-                throw new Exception("Error de cálculo del monto final. Posible manipulación o desincronización.");
+            // Validación de seguridad para el monto final
+            if (abs($validatedData['monto'] - $finalAmount) > 0.02) {
+                throw new Exception("Error de cálculo del monto final. El monto enviado no coincide con el calculado en el servidor.");
             }
 
-            // Crear la factura
-            $factura = Factura::create([
+            DB::beginTransaction(); // Inicia una transacción de base de datos
+
+            // --- Crear el Ticket (Orden) ---
+            $ticket = Ticket::create([
+                'user_id' => $request->user() ? $request->user()->id : null,
+                'order_number' => 'ORD-' . Str::upper(Str::random(10)),
                 'nombre_completo' => $validatedData['nombre_completo'],
                 'correo' => $validatedData['correo'],
-                'telefono' => $validatedData['telefono'],
+                'telefono' => $validatedData['telefono'] ?? null,
                 'direccion' => $validatedData['direccion'],
                 'ciudad' => $validatedData['ciudad'],
-                'codigo_postal' => $validatedData['codigo_postal'],
+                'codigo_postal' => $validatedData['codigo_postal'] ?? null,
                 'promo_code' => $validatedData['promoCode'] ?? null,
-                'metodo_pago' => $validatedData['paymentMethod'],
-                'total' => $montoFinal,
-                'estatus' => $validatedData['paymentMethod'] === 'mobile-payment' ? 'pendiente_pago_movil' : 'pendiente_caja',
+                'monto_total' => $finalAmount,
+                'payment_method' => $validatedData['paymentMethod'],
+                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_cash',
+                'banco_remitente' => $validatedData['banco_remitente'] ?? null,
+                'numero_telefono_remitente' => $validatedData['numero_telefono_remitente'] ?? null,
+                'cedula_remitente' => $validatedData['cedula_remitente'] ?? null,
+                'numero_referencia_pago' => $validatedData['numero_referencia_pago'] ?? null,
             ]);
 
-            // Crear las ventas asociadas a la factura
-            foreach ($itemsForFactura as $item) {
-                Venta::create([
-                    'factura_id' => $factura->id,
-                    'producto_id' => $item['product_id'],
-                    'cantidad' => $item['cantidad'],
-                    'precio' => $item['precio'],
+            // --- Crear Ticket Items ---
+            foreach ($itemsForTicket as $item) {
+                TicketItem::create([
+                    'ticket_id' => $ticket->id,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
                     'subtotal' => $item['subtotal'],
                 ]);
             }
 
-            // Procesar el pago si es mediante pago móvil
-            if ($validatedData['paymentMethod'] === 'mobile-payment') {
-                $this->processMobilePayment($factura, [
-                    'banco_remitente' => $validatedData['banco_remitente'],
-                    'numero_telefono_remitente' => $validatedData['numero_telefono_remitente'],
-                    'cedula_remitente' => $validatedData['cedula_remitente'],
-                    'numero_referencia_pago' => $validatedData['numero_referencia_pago'],
-                    'monto_pagado' => $validatedData['monto'],
-                ]);
+            // --- CREAR LA FACTURA DIRECTAMENTE AQUÍ ---
+            $numeroFactura = 'FAC-' . Str::upper(Str::random(8)) . '-' . $ticket->id;
+
+            $factura = Factura::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => $request->user() ? $request->user()->id : null,
+                'numero_factura' => $numeroFactura,
+                'monto_total' => $finalAmount,
+                'fecha_emision' => now(),
+                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_cash',
+                // --- CAMBIO DEFENSIVO: Usar ?? null aquí ---
+                'nombre_completo' => $validatedData['nombre_completo'] ?? null,
+                'correo' => $validatedData['correo'] ?? null,
+                'telefono' => $validatedData['telefono'] ?? null,
+                'direccion' => $validatedData['direccion'] ?? null,
+                'ciudad' => $validatedData['ciudad'] ?? null,
+                'codigo_postal' => $validatedData['codigo_postal'] ?? null,
+                'banco_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['banco_remitente'] ?? null) : null,
+                'numero_telefono_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['numero_telefono_remitente'] ?? null) : null,
+                'cedula_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['cedula_remitente'] ?? null) : null,
+                'numero_referencia_pago' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['numero_referencia_pago'] ?? null) : null,
+            ]);
+
+            // Si tu tabla `tickets` tiene `factura_id`, asegúrate de actualizarlo:
+            $ticket->factura_id = $factura->id;
+            $ticket->save();
+
+            // --- Crear Registros de Venta ---
+            foreach ($itemsForVenta as $item) {
+                $ventaData = [
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'subtotal' => $item['subtotal'],
+                    'user_id' => $request->user() ? $request->user()->id : null,
+                    'ticket_id' => $ticket->id,
+                    'order_number' => $ticket->order_number,
+                    'factura_id' => $factura->id,
+                    'fecha' => now()->toDateString(),
+                ];
+                Venta::create($ventaData);
             }
 
-            DB::commit(); // Confirmar la transacción
+            DB::commit(); // Confirma la transacción
 
-            // Limpiar el carrito de la sesión después de una compra exitosa
-            session()->forget('cartItems');
+            // Limpia el carrito de la sesión
+            try {
+                session()->forget('cartItems');
+            } catch (Exception $e) {
+                Log::error('Error al limpiar el carrito de la sesión: ' . $e->getMessage());
+            }
 
-            // Retornar la vista de éxito usando Inertia
-            return Inertia::render('Checkout/Success', [
-                'message' => '¡Tu compra ha sido procesada con éxito!',
-                'facturaId' => $factura->id,
-                'totalFinal' => $montoFinal,
+            // --- Redireccionar a la vista de éxito con datos flasheados ---
+            return redirect()->route('success')->with([
+                'order_number' => $ticket->order_number,
+                'payment_method' => $validatedData['paymentMethod'],
+                'factura_id' => $factura->id,
+                'total_amount' => $finalAmount,
+                'numero_factura' => $factura->numero_factura,
             ]);
 
         } catch (ValidationException $e) {
-            DB::rollBack();
+            // El rollback solo se intenta si la transacción ya había comenzado.
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
-            DB::rollBack();
+            // El rollback solo se intenta si la transacción ya había comenzado.
+            //dd($e);
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             Log::error('Error en el proceso de checkout: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            // dd($e->getMessage()); // Descomentar para ver el error exacto si persiste
             return redirect()->back()->withErrors(['checkout' => 'Hubo un problema inesperado al procesar su pedido. Por favor, inténtelo de nuevo más tarde.'])->withInput();
         }
     }
 
-    /**
-     * Retorna una lista de bancos disponibles.
-     * Este método será llamado por el frontend para poblar el selector de bancos.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function listarBancos()
-    {
-        // Aquí puedes obtener los bancos de tu base de datos si tienes una tabla 'bancos'.
-        // Por ejemplo:
-        // $bancos = \App\Models\Banco::select('id', 'name')->orderBy('name')->get();
-        // return Response::json($bancos);
-
-        // Ejemplo de una lista estática de bancos (idealmente, esto vendría de una DB o servicio)
-        $bancos = [
-            ['id' => '1', 'name' => 'Banco de Venezuela'],
-            ['id' => '2', 'name' => 'Banesco'],
-            ['id' => '3', 'name' => 'Mercantil'],
-            ['id' => '4', 'name' => 'Provincial'],
-            ['id' => '5', 'name' => 'BDV'],
-            ['id' => '6', 'name' => 'Banplus'],
-            ['id' => '7', 'name' => 'BNC'],
-            ['id' => '8', 'name' => 'Banco del Tesoro'],
-            // Añade más bancos reales aquí
-        ];
-
-        return Response::json($bancos);
-    }
-
-    /**
-     * Aplica una promoción al monto dado si el código es válido.
-     *
-     * @param  string|null  $promoCode
-     * @param  float  $monto
-     * @return float
-     */
-    private function applyPromotion(?string $promoCode, float $monto): float
+    private function applyPromotion(?string $promoCode, float $amount): float
     {
         if (empty($promoCode)) {
             return 0;
         }
 
         $promotion = Promotion::where('code', $promoCode)
-                               ->where('is_active', true)
-                               ->first();
+            ->where('is_active', true)
+            ->first();
 
         if (!$promotion) {
             return 0;
@@ -208,67 +261,11 @@ class CheckoutController extends Controller
 
         $discount = 0;
         if ($promotion->type === 'percentage') {
-            $discount = $monto * $promotion->value;
+            $discount = $amount * ($promotion->value / 100);
         } elseif ($promotion->type === 'fixed') {
             $discount = $promotion->value;
         }
 
-        return min($discount, $monto);
-    }
-
-    /**
-     * Procesa el pago móvil.
-     *
-     * @param  \App\Models\Factura  $factura
-     * @param  array  $paymentDetails
-     * @return void
-     * @throws \Exception
-     */
-    private function processMobilePayment($factura, $paymentDetails = [])
-    {
-        $response = $this->callBankApi($factura, $paymentDetails);
-
-        if ($response['status'] !== 'success') {
-            $factura->update(['estatus' => 'pago_movil_fallido']);
-            throw new Exception('Error en el procesamiento del pago móvil: ' . $response['message']);
-        }
-
-        $factura->update(['estatus' => 'completado']);
-    }
-
-    /**
-     * Simula una llamada a la API bancaria para procesar el pago.
-     *
-     * @param  \App\Models\Factura  $factura
-     * @param  array  $paymentDetails
-     * @return array
-     */
-    private function callBankApi($factura, $paymentDetails)
-    {
-        Log::info('Simulando llamada a API bancaria para factura: ' . $factura->id, [
-            'factura_total' => $factura->total,
-            'monto_pagado' => $paymentDetails['monto_pagado'] ?? 'N/A',
-            'banco_remitente' => $paymentDetails['banco_remitente'] ?? 'N/A',
-            'numero_telefono_remitente' => $paymentDetails['numero_telefono_remitente'] ?? 'N/A',
-            'cedula_remitente' => $paymentDetails['cedula_remitente'] ?? 'N/A',
-            'numero_referencia_pago' => $paymentDetails['numero_referencia_pago'] ?? 'N/A',
-        ]);
-
-        return [
-            'status' => 'success',
-            'message' => 'Pago procesado correctamente.',
-        ];
-    }
-
-    /**
-     * Muestra la página de éxito del checkout.
-     *
-     * @return \Inertia\Response
-     */
-    public function success()
-    {
-        return Inertia::render('Checkout/Success', [
-            'message' => session('message') ?? 'Gracias por tu compra. Tu pedido está en proceso.',
-        ]);
+        return min($discount, $amount);
     }
 }

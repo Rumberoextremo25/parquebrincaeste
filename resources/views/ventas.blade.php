@@ -53,59 +53,89 @@ h1 {
 }
 </style>
 
-@section('content')  
+@section('content')
 <div class="container mt-5">
-    <div class="row text-center mt-4">  
-        <div class="col-md-12 text-right">  
-            <a href="{{ route('ventas.pdf') }}" class="btn btn-danger btn-lg" target="_blank">Ver Ventas en PDF</a>  
-        </div>  
-    </div>  
-    
-    <h1 class="text-center mb-4 text-primary">Finanzas</h1>  
-    
-    <div class="row text-center mb-4">  
-        <div class="col-sm-6 col-md-4 col-lg-3">  
-            <div class="card shadow-lg border-light rounded">  
-                <div class="card-body bg-gradient-success text-white">  
-                    <h2 class="card-title">Ventas Diarias</h2>  
-                    <p class="card-text display-4">{{ $ventasDiarias }}</p>  
-                </div>  
-            </div>  
-        </div>  
+    <div class="row text-center mt-4">
+        <div class="col-md-12 text-right">
+            <a href="{{ route('ventas.pdf') }}" class="btn btn-danger btn-lg" target="_blank">Ver Ventas en PDF</a>
+        </div>
+    </div>
+
+    <h1 class="text-center mb-4 text-primary">Ventas</h1> {{-- Título de la página actualizado a "Ventas" --}}
+
+    <div class="row text-center mb-4">
+        <div class="col-sm-6 col-md-4 col-lg-3">
+            <div class="card shadow-lg border-light rounded">
+                <div class="card-body bg-gradient-success text-white">
+                    <h2 class="card-title">Ventas Diarias</h2>
+                    <p class="card-text display-4">${{ number_format($ventasDiarias ?? 0, 2) }}</p> {{-- Usando $ventasDiarias del controlador --}}
+                </div>
+            </div>
+        </div>
         <!-- Puedes agregar más tarjetas aquí si es necesario -->
-    </div>  
+    </div>
 
-    <div class="row">  
-        <div class="col-md-12">  
-            <h2 class="text-center mb-4">Gráficos de Ventas</h2>  
-            <canvas id="ventasChart" class="w-100"></canvas>  
-        </div>  
-    </div> 
-</div>  
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="text-center mb-4">Gráficos de Ventas Mensuales</h2> {{-- Título del gráfico actualizado --}}
+            <canvas id="ventasChart" class="w-100"></canvas>
+        </div>
+    </div>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  
-<script>  
-    var ctx = document.getElementById('ventasChart').getContext('2d');  
-    var ventasChart = new Chart(ctx, {  
-        type: 'line',  
-        data: {  
-            labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio'],  
-            datasets: [{  
-                label: 'Ventas',  
-                data: [12000, 19000, 30000, 50000, 20000, 30000, 40000],  
-                borderColor: 'rgba(75, 192, 192, 1)',  
-                borderWidth: 2,  
-                fill: false  
-            }]  
-        },  
-        options: {  
-            responsive: true,  
-            scales: {  
-                y: {  
-                    beginAtZero: true  
-                }  
-            }  
-        }  
-    });  
-</script>  
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var ctx = document.getElementById('ventasChart').getContext('2d');
+
+        // Obtener datos dinámicos de las variables Blade
+        const labelsMeses = {{ Js::from($labelsMeses ?? []) }};
+        const ventasData = {{ Js::from($ventasData ?? []) }};
+
+        var ventasChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labelsMeses, // Datos dinámicos de los meses
+                datasets: [{
+                    label: 'Ventas por Mes',
+                    data: ventasData,      // Datos dinámicos de las ventas
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Monto ($)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Meses'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Ventas Mensuales', // Título del gráfico
+                        font: {
+                            size: 18
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    });
+</script>
 @endsection

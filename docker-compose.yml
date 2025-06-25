@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Servicio para tu aplicación Laravel (el PHP)
+  app:
+    build:
+      context: . # Busca el Dockerfile en la carpeta actual
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    volumes:
+      - .:/var/www/html # Sincroniza tu código local con el contenedor
+    depends_on:
+      - db
+      - redis # Asegura que la BD y Redis estén listos antes que la app
+
+  # Servicio del servidor web Nginx
+  nginx:
+    image: nginx:alpine
+    container_name: laravel_nginx
+    ports:
+      - "80:80" # Tu aplicación será accesible en http://localhost
+    volumes:
+      - .:/var/www/html # Sincroniza tu código local con Nginx
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf # Monta la configuración de Nginx
+    depends_on:
+      - app # Nginx necesita que la app (PHP-FPM) esté lista
+
+  # Servicio de la base de datos MariaDB
+  db:
+    image: mariadb:10.6 # Puedes usar mariadb:latest si prefieres la última versión
+    container_name: laravel_mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: 1234 # CAMBIA ESTO
+      MARIADB_DATABASE: ticket # Nombre de tu base de datos
+      MARIADB_USER: laravel # Usuario para tu app
+      MARIADB_PASSWORD: 1234 # Contraseña para tu app (CAMBIA ESTO)
+    volumes:
+      - db_data:/var/lib/mysql # Persistencia de los datos de la BD
+    ports:
+      - "3306:3306" # Acceso a la BD desde tu host si lo necesitas (ej. con un cliente como DBeaver)
+
+  # Servicio de Redis
+  redis:
+    image: redis:latest
+    container_name: laravel_redis
+    ports:
+      - "6379:6379" # Acceso a Redis desde tu host si lo necesitas
+    volumes:
+      - redis_data:/data # Persistencia de los datos de Redis
+
+volumes:
+  db_data: # Define el volumen para MariaDB
+  redis_data: # Define el volumen para Redis

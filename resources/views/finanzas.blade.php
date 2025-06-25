@@ -59,121 +59,130 @@ canvas {
 }
 </style>
 
-@section('content')  
-<div class="container my-5">  
-    <h1 class="text-center text-primary mb-4">Finanzas</h1>  
-    
-    <div class="row">  
+@section('content')
+<div class="container my-5">
+    <h1 class="text-center text-primary mb-4">Finanzas</h1>
+
+    <div class="row">
         <!-- Resumen Financiero -->
-        <div class="col-md-6">  
-            <div class="card shadow-lg border-light rounded">  
-                <div class="card-header bg-primary text-white text-center">  
-                    <h2 class="mb-0">Resumen Financiero</h2>  
-                </div>  
-                <div class="card-body">  
-                    <div class="mb-4">  
-                        <p class="font-weight-bold">Ingresos Totales:</p>  
-                        <p class="text-success display-4">${{ number_format($ingresosTotales, 2) }}</p>  
-                    </div>  
-                    <div class="mb-4">  
-                        <p class="font-weight-bold">Gastos Totales:</p>  
-                        <p class="text-danger display-4">${{ number_format($gastosTotales, 2) }}</p>  
-                    </div>  
-                    <div class="mb-4">  
-                        <p class="font-weight-bold">Beneficio Neto:</p>  
-                        <p class="text-success font-weight-bold display-4">${{ number_format($beneficioNeto, 2) }}</p>  
-                    </div>  
-                </div>  
-            </div>  
-        </div>  
+        <div class="col-md-6">
+            <div class="card shadow-lg border-light rounded">
+                <div class="card-header bg-primary text-white text-center">
+                    <h2 class="mb-0">Resumen Financiero</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <p class="font-weight-bold">Ingresos Totales:</p>
+                        <p class="text-success display-4">${{ number_format($ingresosTotales ?? 0, 2) }}</p>
+                    </div>
+                    <div class="mb-4">
+                        <p class="font-weight-bold">Gastos Totales:</p>
+                        <p class="text-danger display-4">${{ number_format($gastosTotales ?? 0, 2) }}</p>
+                    </div>
+                    <div class="mb-4">
+                        <p class="font-weight-bold">Beneficio Neto:</p>
+                        <p class="text-success font-weight-bold display-4">${{ number_format($beneficioNeto ?? 0, 2) }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Gráficos Financieros -->
-        <div class="col-md-6">  
-            <div class="card shadow-lg border-light rounded">  
-                <div class="card-header bg-success text-white text-center">  
-                    <h2 class="mb-0">Gráficos Financieros</h2>  
-                </div>  
-                <div class="card-body">  
-                    <canvas id="finanzasChart"></canvas>  
+        <div class="col-md-6">
+            <div class="card shadow-lg border-light rounded">
+                <div class="card-header bg-success text-white text-center">
+                    <h2 class="mb-0">Gráficos Financieros</h2>
                 </div>
-                <div class="card-body">  
-                    <canvas id="beneficioChart"></canvas>  
+                <div class="card-body">
+                    <canvas id="finanzasChart"></canvas>
                 </div>
-            </div>  
+                <div class="card-body">
+                    <canvas id="beneficioChart"></canvas>
+                </div>
+            </div>
         </div>
-    </div>  
-</div>  
+    </div>
+</div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>  
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Gráfico de Ventas por Mes
-    const ctxVentas = document.getElementById('finanzasChart').getContext('2d');
-    const finanzasChart = new Chart(ctxVentas, {
-        type: 'bar',
-        data: {
-            labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Sept', 'Oct', 'Nov', 'Dic'],
-            datasets: [{
-                label: 'Ventas por Mes',
-                data: [12000, 15000, 13000, 17000, 20000, 18000, 16000, 21000, 19000, 22000, 24000, 20000], // datos estáticos
-                backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Monto ($)'
-                    }
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gráfico de Ventas/Ingresos y Gastos por Mes
+        const ctxVentas = document.getElementById('finanzasChart').getContext('2d');
+        const finanzasChart = new Chart(ctxVentas, {
+            type: 'bar',
+            data: {
+                labels: {{ Js::from($labelsMeses ?? []) }}, // Datos dinámicos de los meses
+                datasets: [{
+                    label: 'Ingresos por Mes',
+                    data: {{ Js::from($ingresosData ?? []) }}, // Datos dinámicos de ingresos
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
                 },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Meses'
+                {
+                    label: 'Gastos por Mes',
+                    data: {{ Js::from($gastosData ?? []) }}, // Datos dinámicos de gastos
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Monto ($)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Meses'
+                        }
                     }
                 }
             }
-        }
-    });
+        });
 
-    // Gráfico estático de Beneficio Neto por mes
-    const ctxBeneficio = document.getElementById('beneficioChart').getContext('2d');
-    const beneficioChart = new Chart(ctxBeneficio, {
-        type: 'line',
-        data: {
-            labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Sept', 'Oct', 'Nov', 'Dic'],
-            datasets: [{
-                label: 'Beneficio Neto por Mes',
-                data: [5000, 7000, 6000, 8000, 10000, 9000, 8500, 11000, 10500, 11500, 12500, 10000], // datos estáticos
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Monto ($)'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Meses'
+        // Gráfico de Beneficio Neto por Mes
+        const ctxBeneficio = document.getElementById('beneficioChart').getContext('2d');
+        const beneficioChart = new Chart(ctxBeneficio, {
+            type: 'line',
+            data: {
+                labels: {{ Js::from($labelsMeses ?? []) }}, // Datos dinámicos de los meses
+                datasets: [{
+                    label: 'Beneficio Neto por Mes',
+                    data: {{ Js::from($beneficioNetoData ?? []) }}, // Datos dinámicos de beneficio neto
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Monto ($)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Meses'
+                        }
                     }
                 }
             }
-        }
+        });
     });
-</script>  
+</script>
 @endsection

@@ -1,8 +1,10 @@
 import React from "react";
+
 export default function ApplicationLogo({ className }) {
     return (
         <div className={"font-bold " + className}>
-            <img src="img/logo/logoreducido.png" alt="Brinca Este Logo" className="h-auto w-30" />
+            {/* ¡¡CAMBIO CRÍTICO AQUÍ!! Añade el '/' al inicio de la ruta */}
+            <img src="/img/logo/logoreducido.png" alt="Brinca Este Logo" className="h-auto w-30" />
         </div>
     );
 }

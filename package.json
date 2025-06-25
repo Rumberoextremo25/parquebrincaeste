@@ -7,7 +7,7 @@
     },
     "devDependencies": {
         "@headlessui/react": "^1.4.2",
-        "@inertiajs/react": "^1.0.0",
+        "@inertiajs/react": "^2.0.12",
         "@tailwindcss/forms": "^0.5.3",
         "@types/react": "^18.2.20",
         "@vitejs/plugin-react": "^4.0.3",
@@ -23,7 +23,7 @@
     "dependencies": {
         "@alpinejs/mask": "^3.12.3",
         "@heroicons/react": "^2.0.18",
-        "@inertiajs/inertia-react": "^0.8.1",
+        "@inertiajs/inertia": "^0.11.1",
         "@stripe/react-stripe-js": "^2.1.1",
         "@stripe/stripe-js": "^1.54.2",
         "alpinejs": "^3.12.3",
@@ -33,6 +33,7 @@
         "fslightbox-react": "^1.7.6",
         "lodash": "^4.17.21",
         "lodash.debounce": "^4.0.8",
+        "moment": "^2.30.1",
         "react-countdown": "^2.3.5",
         "react-flatpickr": "^3.10.13",
         "react-hot-toast": "^2.4.1",
@@ -43,6 +44,7 @@
         "react-trix": "^0.10.2",
         "slick-carousel": "^1.8.1",
         "sweetalert2": "^11.22.0",
-        "swiper": "^10.1.0"
+        "swiper": "^10.1.0",
+        "ziggy-js": "^2.5.3"
     }
 }

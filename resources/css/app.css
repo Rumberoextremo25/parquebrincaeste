@@ -149,3 +149,18 @@ select option {
 .trix-button-group.trix-button-group--file-tools {
     display: none;
 }
+
+/* En tu archivo CSS (ej. app.css si usas Tailwind) o en el componente de la Navbar */
+.navbar {
+    position: fixed; /* O sticky, absolute, si ya lo es */
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000; /* Un valor alto para asegurar que esté encima de todo */
+    /* ... otros estilos de tu navbar */
+}
+
+/* Si tienes un botón para abrir/cerrar el menú en móviles (tipo hamburguesa) */
+.navbar-toggler-icon {
+    z-index: 1001; /* Asegúrate de que el icono del botón también esté visible */
+}
