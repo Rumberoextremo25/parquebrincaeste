@@ -4,6 +4,29 @@ import BannerHero from '@/Components/Hero/BannerHero';
 import Modal from '@/Components/Modal';
 import { router } from '@inertiajs/react';
 
+// --- INICIO DE LA SOLUCIÓN: Componente InputField envuelto en React.memo ---
+const InputField = React.memo(({ type, name, label, value, onChange, required, readOnly, placeholder, error }) => {
+    // console.log(`Rendering InputField: ${name}, Value: ${value}`); // Descomenta para depurar si aún tienes problemas
+    return (
+        <div className="mb-4">
+            <label htmlFor={name} className="block text-gray-700 text-sm font-bold mb-2">{label}</label>
+            <input
+                type={type}
+                name={name}
+                id={name}
+                required={required}
+                value={value === null ? '' : value} // Asegúrate de que los valores null se muestren como cadenas vacías
+                onChange={onChange}
+                readOnly={readOnly}
+                placeholder={placeholder}
+                className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${error ? 'border-red-500' : ''}`}
+            />
+            {error && <p className="text-red-500 text-xs italic mt-1">{error}</p>}
+        </div>
+    );
+});
+// --- FIN DE LA SOLUCIÓN ---
+
 const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: initialAvailableBanks }) => {
     const [localCartItems, setLocalCartItems] = useState(initialCartItems);
     const [formData, setFormData] = useState({
@@ -42,25 +65,28 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
+        // console.log(`Changing: ${name}, Value: ${value}`); // Descomenta para ver los cambios
+        setFormData(prevData => {
+            const newState = { ...prevData, [name]: value };
+            // Aquí se actualiza el estado principal con el nuevo valor.
 
-        if (name === 'paymentMethod') {
-            if (value === 'mobile-payment') {
-                setShowMobilePaymentInfoModal(true);
-                setShowMobilePaymentForm(true);
-            } else {
-                // Cuando se cambia a "Pago en Caja", limpiamos los campos de pago móvil
-                setFormData(prevData => ({
-                    ...prevData,
-                    banco_remitente: '',
-                    numero_telefono_remitente: '',
-                    cedula_remitente: '',
-                    numero_referencia_pago: ''
-                }));
-                setShowMobilePaymentInfoModal(false);
-                setShowMobilePaymentForm(false);
+            // Lógica condicional para paymentMethod
+            if (name === 'paymentMethod') {
+                if (value === 'mobile-payment') {
+                    setShowMobilePaymentInfoModal(true);
+                    setShowMobilePaymentForm(true);
+                } else {
+                    // Si el método de pago no es móvil, limpiamos los campos relevantes
+                    newState.banco_remitente = '';
+                    newState.numero_telefono_remitente = '';
+                    newState.cedula_remitente = '';
+                    newState.numero_referencia_pago = '';
+                    setShowMobilePaymentInfoModal(false);
+                    setShowMobilePaymentForm(false);
+                }
             }
-        }
+            return newState;
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -84,7 +110,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
             }))
         };
 
-        // --- INICIO DE LA SOLUCIÓN: Limpiar campos de pago móvil si no son necesarios ---
+        // Limpiar campos de pago móvil si no son necesarios
         if (dataToSend.paymentMethod !== 'mobile-payment') {
             dataToSend = {
                 ...dataToSend,
@@ -94,7 +120,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                 numero_referencia_pago: null,
             };
         }
-        // --- FIN DE LA SOLUCIÓN ---
 
         router.post('/checkout', dataToSend, {
             onStart: () => setLoading(true),
@@ -117,23 +142,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
         });
     };
 
-    const InputField = ({ type, name, label, value, onChange, required, readOnly, placeholder, error }) => (
-        <div className="mb-4">
-            <label htmlFor={name} className="block text-gray-700 text-sm font-bold mb-2">{label}</label>
-            <input
-                type={type}
-                name={name}
-                id={name}
-                required={required}
-                value={value === null ? '' : value} // Asegúrate de que los valores null se muestren como cadenas vacías
-                onChange={onChange}
-                readOnly={readOnly}
-                placeholder={placeholder}
-                className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${error ? 'border-red-500' : ''}`}
-            />
-            {error && <p className="text-red-500 text-xs italic mt-1">{error}</p>}
-        </div>
-    );
 
     const handleQuantityChange = (productId, change) => {
         setLocalCartItems((prevItems) => {
@@ -164,7 +172,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                             <span className="block sm:inline">{errorMessage}</span>
                         </div>}
 
-                        {/* --- INICIO DE LA SOLUCIÓN DEL ERROR 'key' --- */}
                         {Object.keys(errors).length > 0 && (
                             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
                                 <strong className="font-bold">¡Por favor corrige los siguientes errores!</strong>
@@ -178,7 +185,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                                 </ul>
                             </div>
                         )}
-                        {/* --- FIN DE LA SOLUCIÓN DEL ERROR 'key' --- */}
 
                         <form className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" onSubmit={handleSubmit}>
                             <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Detalles del Cliente</h2>
