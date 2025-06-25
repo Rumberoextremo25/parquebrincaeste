@@ -20,48 +20,60 @@ class TicketController extends Controller
      */
     public function myTickets(Request $request)
     {
-        // Asegúrate de que el usuario esté autenticado
         if (!Auth::check()) {
             return response()->json(['message' => 'No autenticado.'], 401);
         }
 
-        // Obtener tickets (órdenes) para el usuario autenticado
-        // Cargar eager (carga ansiosa) ticketItems y sus productos asociados,
-        // y también la factura asociada.
-        $tickets = Ticket::where('user_id', Auth::id())
-                        ->with([
-                            'ticketItems' => function($query) {
-                                $query->with('product'); // Cargar el producto para cada ítem del ticket
-                            },
-                            'factura' // Cargar la relación de factura para obtener su ID y número
-                        ])
-                        ->orderByDesc('created_at') // Ordenar por los más recientes primero
-                        ->get();
+        $user = Auth::user();
+        $perPage = $request->input('per_page', 10);
 
-        // Formatear los datos para una respuesta JSON más limpia y con todos los detalles
-        $formattedTickets = $tickets->map(function ($ticket) {
-            return [
-                'id' => $ticket->id,
-                'order_number' => $ticket->order_number,
-                'monto_total' => $ticket->monto_total,
-                'payment_method' => $ticket->payment_method,
-                'status' => $ticket->status,
-                'created_at' => Carbon::parse($ticket->created_at)->format('d/m/Y H:i'),
-                'factura_id' => $ticket->factura ? $ticket->factura->id : null, // ID de la factura
-                'numero_factura' => $ticket->factura ? $ticket->factura->numero_factura : null, // Número de factura
-                'items' => $ticket->ticketItems->map(function ($item) { // Usa ticketItems si esa es la relación
-                    return [
-                        'product_id' => $item->product_id,
-                        'product_name' => $item->product ? $item->product->name : 'Producto Desconocido',
-                        'quantity' => $item->quantity,
-                        'price' => $item->price,
-                        'subtotal' => $item->subtotal,
-                    ];
-                }),
-            ];
-        });
+        $ticketsPaginados = Ticket::where('user_id', $user->id)
+                         ->with([
+                             'ticketItems' => function($query) {
+                                 $query->with('product');
+                             },
+                             'factura'
+                         ])
+                         ->orderByDesc('created_at')
+                         ->paginate($perPage);
 
-        return response()->json($formattedTickets);
+        // Formatear los ítems individuales
+        $formattedItems = $ticketsPaginados->getCollection()->map(fn($ticket) => [
+            'id' => $ticket->id,
+            'order_number' => $ticket->order_number,
+            'monto_total' => $ticket->monto_total,
+            'payment_method' => $ticket->payment_method,
+            'status' => $ticket->status,
+            'created_at' => Carbon::parse($ticket->created_at)->format('d/m/Y H:i'),
+            'factura_id' => $ticket->factura ? $ticket->factura->id : null,
+            'numero_factura' => $ticket->factura ? $ticket->factura->numero_factura : null,
+            'items' => $ticket->ticketItems->map(function ($item) {
+                return [
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product ? $item->product->name : 'Producto Desconocido',
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'subtotal' => $item->subtotal,
+                ];
+            }),
+        ])->toArray(); // Convertir la colección formateada a un array
+
+        // Retornar la respuesta JSON con la estructura paginada completa
+        return response()->json([
+            'current_page' => $ticketsPaginados->currentPage(),
+            'data' => $formattedItems, // Los ítems ya formateados
+            'first_page_url' => $ticketsPaginados->url(1),
+            'from' => $ticketsPaginados->firstItem(),
+            'last_page' => $ticketsPaginados->lastPage(),
+            'last_page_url' => $ticketsPaginados->url($ticketsPaginados->lastPage()),
+            'links' => $ticketsPaginados->linkCollection()->toArray(), // Los enlaces de paginación
+            'next_page_url' => $ticketsPaginados->nextPageUrl(),
+            'path' => $ticketsPaginados->path(),
+            'per_page' => $ticketsPaginados->perPage(),
+            'prev_page_url' => $ticketsPaginados->previousPageUrl(),
+            'to' => $ticketsPaginados->lastItem(),
+            'total' => $ticketsPaginados->total(),
+        ]);
     }
 
     /**
@@ -78,8 +90,8 @@ class TicketController extends Controller
         }
 
         $ticket = Ticket::with(['ticketItems.product', 'factura']) // También cargar factura aquí si se necesita
-                        ->where('user_id', Auth::id()) // Asegúrate de que el ticket pertenece al usuario autenticado
-                        ->findOrFail($id); // Lanza 404 si no se encuentra
+            ->where('user_id', Auth::id()) // Asegúrate de que el ticket pertenece al usuario autenticado
+            ->findOrFail($id); // Lanza 404 si no se encuentra
 
         return response()->json($ticket);
     }
@@ -211,9 +223,9 @@ class TicketController extends Controller
             </thead>
             <tbody>';
 
-            if ($ticketItems->isNotEmpty()) {
-                foreach ($ticketItems as $item) {
-                    $html .= '
+        if ($ticketItems->isNotEmpty()) {
+            foreach ($ticketItems as $item) {
+                $html .= '
                     <tr>
                         <td style="width: 10%; text-align: center; border: 1px solid #ddd;">' . ($item->product_id ?? 'N/A') . '</td>
                         <td style="width: 40%; border: 1px solid #ddd;">' . ($item->product ? $item->product->name : 'Producto Desconocido') . '</td>
@@ -221,13 +233,13 @@ class TicketController extends Controller
                         <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format(($item->price ?? 0), 2, ',', '.') . '</td>
                         <td style="width: 20%; text-align: right; border: 1px solid #ddd;">$' . number_format(($item->subtotal ?? 0), 2, ',', '.') . '</td>
                     </tr>';
-                }
-            } else {
-                $html .= '<tr><td colspan="5" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>';
             }
+        } else {
+            $html .= '<tr><td colspan="5" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>';
+        }
 
 
-            $html .= '
+        $html .= '
             </tbody>
         </table>
         <br>

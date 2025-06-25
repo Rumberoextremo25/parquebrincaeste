@@ -1,6 +1,6 @@
 // resources/js/Pages/MyOrders.jsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Agregamos useCallback
 import axios from 'axios';
 import BannerHero from "@/Components/Hero/BannerHero";
 import ValidationErrors from "@/Components/ValidationErrors";
@@ -8,76 +8,95 @@ import Layout from "@/Layouts/Layout";
 import { Link, usePage } from "@inertiajs/react";
 
 const MyOrders = () => {
-    // Extrae 'auth' de las props de la página para acceder al usuario autenticado
     const { errors, auth } = usePage().props;
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    // Nuevo estado para el mensaje de error de descarga
     const [downloadErrorMessage, setDownloadErrorMessage] = useState('');
 
-    // Función para manejar la descarga del comprobante (similar a Success.jsx)
+    // --- NUEVOS ESTADOS PARA PAGINACIÓN ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
+    const [paginationLinks, setPaginationLinks] = useState([]);
+    // --- FIN NUEVOS ESTADOS PARA PAGINACIÓN ---
+
     const handleDownloadInvoice = (facturaId, numeroFactura) => {
-        setDownloadErrorMessage(''); // Limpiar cualquier mensaje de error previo
+        setDownloadErrorMessage('');
         let urlToOpen = null;
 
-        // Prioriza 'numero_factura' para la URL
         if (numeroFactura) {
-            urlToOpen = `/invoice/numero/${numeroFactura}/download`; // Asume esta ruta en Laravel
+            urlToOpen = `/invoice/numero/${numeroFactura}/download`;
         } else if (facturaId) {
-            // Como fallback, usa el factura_id
-            urlToOpen = `/invoice/${facturaId}/download`; // Asume esta ruta en Laravel
+            urlToOpen = `/invoice/${facturaId}/download`;
         }
 
         if (urlToOpen) {
             window.open(urlToOpen, '_blank');
         } else {
-            // Muestra un mensaje de error en la interfaz de usuario en lugar de un alert()
             setDownloadErrorMessage('No se encontró información de factura para descargar. Por favor, intente recargar la página o contacte a soporte.');
             console.error('No se encontró información de factura para descargar.');
         }
     };
 
-    useEffect(() => {
-        const fetchOrders = async () => {
-            // Verifica si el usuario está autenticado en el frontend antes de intentar cargar las órdenes
-            // Si auth.user es null, no tiene sentido hacer la petición API
-            if (!auth.user) {
-                setError('No estás autenticado para ver tus órdenes. Por favor, inicia sesión.');
-                setLoading(false);
-                return;
-            }
+    // Modificamos fetchOrders para aceptar el número de página
+    const fetchOrders = useCallback(async (page = 1) => { // Establecemos la página por defecto en 1
+        if (!auth.user) {
+            setError('No estás autenticado para ver tus órdenes. Por favor, inicia sesión.');
+            setLoading(false);
+            return;
+        }
 
-            try {
-                // La URL de la API que creaste en Laravel (`routes/api.php`)
-                // Debería ser `/api/my-tickets` según tu controlador
-                const response = await axios.get('/api/my-tickets', {
-                    // Esto es CRUCIAL para la autenticación basada en sesión/Sanctum
-                    // Asegura que las cookies de sesión y el token XSRF-TOKEN se envíen
-                    withCredentials: true,
-                });
-                setOrders(response.data);
-            } catch (err) {
-                console.error("Error al cargar las órdenes:", err);
-                // Si el error es 401 (Unauthenticated), muestra un mensaje específico
-                if (err.response && err.response.status === 401) {
-                    setError('Tu sesión ha expirado o no estás autorizado. Por favor, inicia sesión nuevamente.');
-                } else {
-                    setError(err.response?.data?.message || 'Error al cargar las órdenes. Inténtelo de nuevo más tarde.');
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
+        setLoading(true); // Siempre que se inicie una nueva búsqueda, se carga
+        setError(null); // Limpiamos errores previos
 
-        // Llama a la función para cargar órdenes cuando el componente se monta
-        // o cuando el estado de autenticación del usuario cambia.
-        fetchOrders();
+        try {
+            // Envía el parámetro 'page' en la URL
+            const response = await axios.get(`/api/my-tickets?page=${page}`, {
+                withCredentials: true,
+            });
+
+            // Actualizamos los estados con los datos paginados
+            setOrders(response.data.data); // 'data' contiene los ítems reales
+            setCurrentPage(response.data.current_page);
+            setLastPage(response.data.last_page);
+            // Filtramos los enlaces para solo mostrar 'next', 'prev' y los números de página
+            const filteredLinks = response.data.links.filter(link =>
+                link.url !== null && link.label !== '&laquo; Previous' && link.label !== 'Next &raquo;'
+            ).map(link => ({
+                ...link,
+                label: link.label.replace(/&laquo; Previous|Next &raquo;/g, '') // Limpiar los labels si aún quedan
+            }));
+            setPaginationLinks(filteredLinks);
+
+
+        } catch (err) {
+            console.error("Error al cargar las órdenes:", err);
+            if (err.response && err.response.status === 401) {
+                setError('Tu sesión ha expirado o no estás autorizado. Por favor, inicia sesión nuevamente.');
+            } else {
+                setError(err.response?.data?.message || 'Error al cargar las órdenes. Inténtelo de nuevo más tarde.');
+            }
+        } finally {
+            setLoading(false);
+        }
     }, [auth.user]); // El efecto se ejecuta cuando auth.user cambia
+
+    // useEffect para cargar las órdenes iniciales o cuando cambia la página
+    useEffect(() => {
+        fetchOrders(currentPage);
+    }, [currentPage, fetchOrders]); // Dependencias: currentPage y fetchOrders
+
+    // Función para manejar el cambio de página
+    const handlePageChange = (url) => {
+        // Extraemos el número de página de la URL
+        const pageNumber = new URL(url).searchParams.get('page');
+        if (pageNumber) {
+            setCurrentPage(parseInt(pageNumber));
+        }
+    };
 
     return (
         <Layout title="Mis Compras">
-            {/* El título del BannerHero debería acceder a auth.user de forma segura */}
             <BannerHero title={`Bienvenido, ${auth.user ? auth.user.name : 'Invitado'}`} />
             <div className="container py-section">
                 <div className="grid grid-cols-12 md:gap-4 gap-y-10">
@@ -105,11 +124,10 @@ const MyOrders = () => {
                             >
                                 Cambiar contraseña
                             </Link>
-                            {/* Enlace para "Mis Compras" */}
                             <Link
-                                href={route("profile.my_orders")} // Asumiendo que esta es la ruta a este componente
+                                href={route("profile.my_orders")}
                                 preserveScroll
-                                className="block py-3 pl-4 border-l-4 font-medium border-blue-500 text-blue-500" // Estilo para indicar que es la página activa
+                                className="block py-3 pl-4 border-l-4 font-medium border-blue-500 text-blue-500"
                             >
                                 Mis Compras
                             </Link>
@@ -118,7 +136,6 @@ const MyOrders = () => {
                     <div className="col-span-12 md:col-span-9">
                         <div>
                             <ValidationErrors errors={errors} />
-                            {/* Mensaje de error para la descarga (si aplica) */}
                             {downloadErrorMessage && (
                                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded" role="alert">
                                     <p className="font-bold">Error al descargar:</p>
@@ -128,7 +145,6 @@ const MyOrders = () => {
                             <div className="border-b pb-4 mb-4">
                                 <h2 className="text-2xl font-semibold">Mis Compras</h2>
                             </div>
-                            {/* Manejo de estados de carga, error y órdenes */}
                             {loading ? (
                                 <div className="text-gray-600">Cargando órdenes...</div>
                             ) : error ? (
@@ -147,12 +163,11 @@ const MyOrders = () => {
                                                     order.status === 'completed' ? 'bg-green-100 text-green-800' :
                                                     'bg-gray-100 text-gray-800'
                                                 }`}>
-                                                    {order.status.replace(/_/g, ' ').toUpperCase()} {/* Formatea el status */}
+                                                    {order.status.replace(/_/g, ' ').toUpperCase()}
                                                 </span>
                                             </div>
-                                            <p className="text-gray-600 mb-2"><strong>Fecha:</strong> {order.created_at}</p>
+                                            <p className="text-gray-600 mb-2"><strong>Fecha:</strong> {new Date(order.created_at).toLocaleDateString()}</p> {/* Formatear fecha */}
                                             <p className="text-gray-600 mb-2"><strong>Método de Pago:</strong> {order.payment_method === 'in-store' ? 'Pago en Caja' : 'Pago Móvil'}</p>
-                                            {/* SOLUCIÓN: Convertir monto_total a float antes de toFixed */}
                                             <p className="text-gray-800 text-lg font-bold mb-4">
                                                 <strong>Total:</strong> ${order.monto_total ? parseFloat(order.monto_total).toFixed(2) : '0.00'}
                                             </p>
@@ -161,8 +176,7 @@ const MyOrders = () => {
                                             <ul className="list-disc list-inside mb-4 space-y-1 text-gray-700">
                                                 {order.items.length > 0 ? (
                                                     order.items.map(item => (
-                                                        <li key={item.product_id || item.id}> {/* Usa item.id como fallback si product_id no es único */}
-                                                            {/* SOLUCIÓN: Convertir item.price y item.subtotal a float antes de toFixed */}
+                                                        <li key={item.product_id || item.id}>
                                                             {item.product_name} (x{item.quantity}) - ${item.price ? parseFloat(item.price).toFixed(2) : '0.00'} cada uno. Subtotal: ${item.subtotal ? parseFloat(item.subtotal).toFixed(2) : '0.00'}
                                                         </li>
                                                     ))
@@ -171,8 +185,7 @@ const MyOrders = () => {
                                                 )}
                                             </ul>
 
-                                            {/* Botón de descarga de comprobante */}
-                                            {(order.factura_id || order.numero_factura) && ( // Muestra el botón si hay ID o número de factura
+                                            {(order.factura_id || order.numero_factura) && (
                                                 <div className="mt-4">
                                                     <button
                                                         onClick={() => handleDownloadInvoice(order.factura_id, order.numero_factura)}
@@ -187,6 +200,35 @@ const MyOrders = () => {
                                             )}
                                         </div>
                                     ))}
+
+                                    {/* --- COMPONENTES DE PAGINACIÓN --- */}
+                                    {paginationLinks.length > 1 && ( // Solo muestra la paginación si hay más de una página
+                                        <div className="flex justify-center mt-8">
+                                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                                {paginationLinks.map((link, index) => (
+                                                    <button
+                                                        key={index}
+                                                        onClick={() => link.url && handlePageChange(link.url)}
+                                                        disabled={link.url === null} // Deshabilita si no hay URL (p.ej., página actual)
+                                                        aria-current={link.active ? 'page' : undefined}
+                                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                                            link.active
+                                                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                                                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                                        } ${
+                                                            index === 0 ? 'rounded-l-md' : ''
+                                                        } ${
+                                                            index === paginationLinks.length - 1 ? 'rounded-r-md' : ''
+                                                        }`}
+                                                    >
+                                                        {/* Renderiza los símbolos y números de página */}
+                                                        {link.label === '&laquo;' ? 'Anterior' : link.label === '&raquo;' ? 'Siguiente' : link.label}
+                                                    </button>
+                                                ))}
+                                            </nav>
+                                        </div>
+                                    )}
+                                    {/* --- FIN COMPONENTES DE PAGINACIÓN --- */}
                                 </div>
                             )}
                         </div>
