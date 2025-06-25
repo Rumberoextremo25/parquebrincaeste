@@ -72,7 +72,7 @@ const MyOrders = () => {
         } catch (err) {
             console.error("Error al cargar las órdenes:", err);
             if (err.response && err.response.status === 401) {
-                setError('Tu sesión ha expirado o no estás autorizado. Por favor, inicia sesión nuevamente.');
+                setError('No tienes Ticket aun en tu cuenta.');
             } else {
                 setError(err.response?.data?.message || 'Error al cargar las órdenes. Inténtelo de nuevo más tarde.');
             }
