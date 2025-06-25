@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Métodos permitidos
 
-    'allowed_origins' => ['https://brincaeste.com'], // Dominio permitido
+    'allowed_origins' => ['https://www.brincaeste.com'], // Dominio permitido
 
     'allowed_origins_patterns' => [],
 

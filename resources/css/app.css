@@ -164,3 +164,8 @@ select option {
 .navbar-toggler-icon {
     z-index: 1001; /* Asegúrate de que el icono del botón también esté visible */
 }
+
+.bg-primary-600 {
+    --tw-bg-opacity: 1;
+    background-color: #400089e3;
+}
