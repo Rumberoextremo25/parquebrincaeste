@@ -67,6 +67,8 @@ Route::get('/success/success', function (Request $request) {
     // Recupera los datos flasheados de la sesión
     $orderNumber = $request->session()->get('order_number');
     $paymentMethod = $request->session()->get('payment_method');
+    $facturaId = $request->session()->get('factura_id');
+    $facturaNumber = $request->session()->get('numero_factura');
 
     if (!$orderNumber || !$paymentMethod) {
         // Redirige a una página de inicio o muestra un error si los datos no están presentes
@@ -76,6 +78,8 @@ Route::get('/success/success', function (Request $request) {
     return Inertia::render('Success/Success', [
         'order_number' => $orderNumber,
         'payment_method' => $paymentMethod,
+        'factura_id'=> $facturaId,
+        'numero_factura'=> $facturaNumber,
     ]);
 })->name('success');
 
