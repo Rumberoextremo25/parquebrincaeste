@@ -32,6 +32,12 @@
             'icon' => 'heroicon-o-ticket',
             'roles' => ['super-admin', 'administracion'],
         ],
+        [
+            'name' => 'Tasa BCV',
+            'route' => route('exchange-rates.index'),
+            'icon' => 'heroicon-o-currency-dollar',
+            'roles' => ['super-admin', 'administracion'],
+        ],
     ];
 @endphp
 

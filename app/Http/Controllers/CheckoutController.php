@@ -8,6 +8,7 @@ use App\Models\Promotion;
 use App\Models\Ticket;
 use App\Models\TicketItem;
 use App\Models\Venta; // Import the Venta model
+use App\Services\BcvService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,8 +25,14 @@ class CheckoutController extends Controller
      * @param Request $request
      * @return \Inertia\Response
      */
+    protected $bcvService;
+    public function __construct(BcvService $bcvService)
+    {
+        $this->bcvService = $bcvService;
+    }
     public function index(Request $request)
     {
+        $bcvRate = $this->bcvService->getExchangeRate();
         $user = $request->user();
         $cartItems = session()->get('cartItems', []);
 
@@ -37,6 +44,7 @@ class CheckoutController extends Controller
             'cartItems' => $cartItems,
             'user' => $user ? $user->toArray() : null,
             'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : [],
+            'bcvRate' => $bcvRate,
         ]);
     }
 

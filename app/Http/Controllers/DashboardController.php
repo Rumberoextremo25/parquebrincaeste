@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Factura;
 use App\Models\Subscriber;
 use App\Models\Ticket;
+use App\Services\BcvService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
@@ -20,6 +21,12 @@ use Illuminate\Contracts\View\View;
 
 class DashboardController extends Controller
 {
+    protected $bcvService;
+
+    public function __construct(BcvService $bcvService)
+    {
+        $this->bcvService = $bcvService;
+    }
     public function home(Request $request): View
     {
         $TotalUsers = User::count();
@@ -251,6 +258,9 @@ class DashboardController extends Controller
 
     public function generarPDFVentas()
     {
+        // Obtener la tasa BCV
+        $bcvRate = $this->bcvService->getExchangeRate();
+
         // 1. Configuración básica de TCPDF
         $pdf = new TCPDF();
         $pdf->SetCreator(PDF_CREATOR);
@@ -264,60 +274,85 @@ class DashboardController extends Controller
         $pdf->AddPage();
 
         // 2. Obtener los datos de las ventas con sus productos relacionados
+        // Asegúrate que 'Venta' y 'product' existen y están bien relacionados en tu modelo
         $ventas = Venta::with('product')->get();
 
         // Inicializar contadores para los totales
-        $totalVendido = 0;
+        $totalVendidoUSD = 0; // Renombrado para claridad
+        $totalVendidoBs = 0; // Nuevo total en Bs
         $cantidadTotalProductos = 0;
-        $cantidadCalcetines = 0;   // Contador para calcetines
-        $cantidadBrazaletes = 0;   // Contador para brazaletes
+        $cantidadCalcetines = 0;
+        $cantidadBrazaletes = 0;
+
+        // --- Encabezado del reporte con la tasa BCV ---
+        $html = '<h1>Reporte de Ventas</h1>';
+        $html .= '<p><strong>Fecha del Reporte:</strong> ' . Carbon::now()->format('d/m/Y H:i') . '</p>';
+        if ($bcvRate > 0) {
+            $html .= '<p><strong>Tasa BCV (referencial):</strong> 1 USD = ' . number_format($bcvRate, 2, ',', '.') . ' Bs</p>';
+        } else {
+            $html .= '<p style="color: red;"><strong>Advertencia:</strong> Tasa BCV no disponible. Los montos en Bolívares pueden no ser precisos.</p>';
+        }
+        $html .= '<br>'; // Espacio
 
         // 3. Encabezados de la tabla
-        $html = '<h1>Reporte de Ventas</h1>';
-        $html .= '<table border="1" cellpadding="4"><tr>';
-        $html .= '<th>ID de Venta</th>';
-        $html .= '<th>Nombre del Producto</th>';
-        $html .= '<th>Precio Unitario</th>';
-        $html .= '<th>Cantidad</th>';
-        $html .= '<th>Subtotal Línea</th>';
-        $html .= '<th>Fecha de Venta</th>';
-        $html .= '</tr>';
+        $html .= '<table border="1" cellpadding="4" cellspacing="0">'; // Añadido cellspacing para mejor visualización
+        $html .= '<thead><tr>';
+        $html .= '<th style="width: 10%;">ID Venta</th>';
+        $html .= '<th style="width: 25%;">Nombre Producto</th>';
+        $html .= '<th style="width: 10%;">Cant.</th>';
+        $html .= '<th style="width: 15%;">Precio Unit. (USD)</th>';
+        $html .= '<th style="width: 15%;">Subtotal (USD)</th>';
+        $html .= '<th style="width: 15%;">Subtotal (Bs)</th>'; // Nueva columna para subtotal en Bs
+        $html .= '<th style="width: 10%;">Fecha Venta</th>';
+        $html .= '</tr></thead><tbody>';
 
         // 4. Filas con datos y cálculo de totales por categoría
         foreach ($ventas as $venta) {
             $nombreProducto = $venta->product ? $venta->product->name : 'N/A';
-            // Accedemos a la categoría del producto desde la relación
             $productCategory = $venta->product ? $venta->product->category : null;
 
+            // Calcula el precio unitario y subtotal en USD para esta línea (si no vienen directamente de la DB)
+            $precioUnitarioUSD = $venta->price; // Asumiendo que $venta->price es el precio unitario en USD
+            $subtotalLineaUSD = $venta->subtotal; // Asumiendo que $venta->subtotal es el subtotal de la línea en USD
+
+            // Calcular subtotal en Bolívares
+            $subtotalLineaBs = $subtotalLineaUSD * $bcvRate;
+
             $html .= '<tr>';
-            $html .= '<td>' . $venta->id . '</td>';
-            $html .= '<td>' . $nombreProducto . '</td>';
-            $html .= '<td>' . number_format($venta->price, 2, ',', '.') . '</td>';
-            $html .= '<td>' . $venta->quantity . '</td>';
-            $html .= '<td>' . number_format($venta->subtotal, 2, ',', '.') . '</td>';
-            $html .= '<td>' . ($venta->fecha ? Carbon::parse($venta->fecha)->format('d/m/Y') : Carbon::parse($venta->created_at)->format('d/m/Y')) . '</td>';
+            $html .= '<td style="width: 10%;">#' . $venta->id . '</td>';
+            $html .= '<td style="width: 25%;">' . htmlspecialchars($nombreProducto) . '</td>'; // Usar htmlspecialchars para seguridad
+            $html .= '<td style="width: 10%; text-align: center;">' . $venta->quantity . '</td>';
+            $html .= '<td style="width: 15%; text-align: right;">$' . number_format($precioUnitarioUSD, 2, ',', '.') . '</td>';
+            $html .= '<td style="width: 15%; text-align: right;">$' . number_format($subtotalLineaUSD, 2, ',', '.') . '</td>';
+            $html .= '<td style="width: 15%; text-align: right;">' . number_format($subtotalLineaBs, 2, ',', '.') . ' Bs</td>'; // Monto en Bs
+            $html .= '<td style="width: 10%; text-align: center;">' . ($venta->fecha ? Carbon::parse($venta->fecha)->format('d/m/Y') : Carbon::parse($venta->created_at)->format('d/m/Y')) . '</td>';
             $html .= '</tr>';
 
             // Acumular los totales generales
-            $totalVendido += $venta->subtotal;
+            $totalVendidoUSD += $subtotalLineaUSD;
+            $totalVendidoBs += $subtotalLineaBs; // Acumular total en Bs
             $cantidadTotalProductos += $venta->quantity;
 
             // Acumular cantidades por las categorías específicas
-            if ($productCategory === 'Calcetines') { // <-- Ajustado a 'calcetines'
+            if ($productCategory === 'Medias') { // Ajustado a 'Medias' (capitalización)
                 $cantidadCalcetines += $venta->quantity;
-            } elseif ($productCategory === 'Brazalete') { // <-- Ajustado a 'brazaletes'
+            } elseif ($productCategory === 'Brazalete') { // Ajustado a 'Brazalete' (capitalización)
                 $cantidadBrazaletes += $venta->quantity;
             }
         }
 
-        $html .= '</table>';
+        $html .= '</tbody></table>';
 
         // 5. Agregar la sección de totales al final del reporte
         $html .= '<br><br>';
-        $html .= '<table border="0" cellpadding="4">';
+        $html .= '<table border="0" cellpadding="4" cellspacing="0" style="width: 100%;">'; // Usar el 100% del ancho
         $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">TOTAL VENDIDO:</td>';
-        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">' . number_format($totalVendido, 2, ',', '.') . '</td>';
+        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">TOTAL VENDIDO (USD):</td>'; // Etiqueta clara
+        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">$' . number_format($totalVendidoUSD, 2, ',', '.') . '</td>';
+        $html .= '</tr>';
+        $html .= '<tr>';
+        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">TOTAL VENDIDO (Bs):</td>'; // Nueva fila para total en Bs
+        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">' . number_format($totalVendidoBs, 2, ',', '.') . ' Bs</td>';
         $html .= '</tr>';
         $html .= '<tr>';
         $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">CANTIDAD TOTAL DE PRODUCTOS:</td>';
@@ -325,11 +360,11 @@ class DashboardController extends Controller
         $html .= '</tr>';
         // Filas para el desglose por categorías específicas
         $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Calcetines:</td>'; // <-- Etiqueta ajustada
+        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Calcetines:</td>';
         $html .= '<td style="width: 20%; text-align: right;">' . number_format($cantidadCalcetines, 0, ',', '.') . '</td>';
         $html .= '</tr>';
         $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Brazaletes:</td>'; // <-- Etiqueta ajustada
+        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Brazaletes:</td>';
         $html .= '<td style="width: 20%; text-align: right;">' . number_format($cantidadBrazaletes, 0, ',', '.') . '</td>';
         $html .= '</tr>';
         $html .= '</table>';
