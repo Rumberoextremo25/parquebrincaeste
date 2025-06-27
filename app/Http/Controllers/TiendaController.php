@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Services\BcvService;
 use Exception;
 use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
@@ -11,12 +12,20 @@ use Illuminate\Support\Facades\Session;
 
 class TiendaController extends Controller
 {
+    protected $bcvService;
+    public function __construct(BcvService $bcvService)
+    {
+        $this->bcvService = $bcvService;
+    }
     public function tienda()
     {
         $products = Product::all();
 
+        $bcvRate = $this->bcvService->getExchangeRate();
+
         return Inertia::render('Tienda/tienda', [
             'products' => $products,
+            'bcvRate' => $bcvRate,
         ]);
     }
 
