@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ExchangeRateController;
 use App\Http\Controllers\Api\TicketController;
 use Inertia\Inertia;
 use App\Http\Controllers\CheckoutController;
@@ -208,5 +209,10 @@ Route::get('/invoice/{factura}/download', [InvoiceController::class, 'downloadIn
 // Ejemplo: /invoice/numero/FAC-XYZ-123/download
 Route::get('/invoice/numero/{numero_factura}/download', [InvoiceController::class, 'downloadInvoiceByNumber'])
      ->name('invoice.download_by_number'); // Nuevo nombre para esta ruta
+
+// RUTA PARA LA VISTA DE CAMBIAR TASA DOLAR
+    Route::get('/exchange-rates', [ExchangeRateController::class, 'index'])->name('exchange-rates.index');
+    Route::post('/exchange-rates/update-manual', [ExchangeRateController::class, 'updateManual'])->name('exchange-rates.update-manual');
+    Route::post('/exchange-rates/update-bcv', [ExchangeRateController::class, 'updateFromBcv'])->name('exchange-rates.update-bcv');
 
 require __DIR__ . '/auth.php';

@@ -71,7 +71,7 @@ const Tienda = (props) => {
     );
 
     // Filtra las medias (calcetines) - su precio ya es fijo en $1.50 desde el seeder
-    const socksProducts = PRODUCTS.filter((p) => p.category === "Calcetines");
+    const socksProducts = PRODUCTS.filter((p) => p.category === "Medias");
 
     const selectedBraceletProduct = PRODUCTS.find(
         (p) => p.id === selectedBraceletId

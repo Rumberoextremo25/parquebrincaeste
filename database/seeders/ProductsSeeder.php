@@ -118,10 +118,10 @@ class ProductsSeeder extends Seeder
 
         foreach ($tallas as $talla) {
             $calcetines[] = $this->createProductData(
-                "Calcetín Talla $talla",
+                "Media Talla $talla",
                 "Calcetines cómodos y suaves, talla $talla.",
                 $price,
-                'Calcetines'
+                'Medias'
             );
         }
 

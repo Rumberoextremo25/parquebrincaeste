@@ -2,17 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Factura; // Asume que tu modelo de Factura es correcto
 use Illuminate\Http\Request;
-use Illuminate\View\View; // Aunque no se usa directamente aquí, es buena práctica
-use App\Models\Factura;
-use App\Models\Ticket; // ¡Asegúrate de importar el modelo Ticket!
-use App\Models\User; // Si lo usas para Auth
 use Illuminate\Support\Facades\Auth;
-use TCPDF;
 use Carbon\Carbon; // Para formatear fechas
+use TCPDF; // Para la generación de PDFs
+use App\Services\BcvService; // Asegúrate de importar tu servicio BCV
 
 class InvoiceController extends Controller
 {
+    protected $bcvService;
+
+    // Inyecta el BcvService en el constructor
+    public function __construct(BcvService $bcvService)
+    {
+        $this->bcvService = $bcvService;
+    }
+
     /**
      * Descarga el comprobante de la factura en formato PDF por su ID.
      * La factura se muestra directamente en el navegador.
@@ -68,6 +74,9 @@ class InvoiceController extends Controller
      */
     private function generatePdfResponse(Factura $factura)
     {
+        // Obtener la tasa BCV aquí
+        $bcvRate = $this->bcvService->getExchangeRate();
+
         // Instancia de TCPDF
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
@@ -109,6 +118,9 @@ class InvoiceController extends Controller
         $ticket = $factura->ticket;
         $ticketItems = $ticket ? $ticket->ticketItems : collect();
 
+        // Calcular el monto total en bolívares de la factura
+        $montoTotalBs = $factura->monto_total * $bcvRate;
+
         // Construcción del contenido HTML para el PDF
         $html = '
         <h1 style="text-align: center; color: #333;">COMPROBANTE DE COMPRA</h1>
@@ -119,8 +131,13 @@ class InvoiceController extends Controller
                 <td style="width: 50%;"><strong>Fecha de Emisión:</strong> ' . (Carbon::parse($factura->fecha_emision)->format('d/m/Y H:i:s') ?? 'N/A') . '</td>
             </tr>
             <tr>
-                <td><strong>Número de Orden:</strong> ' . ($ticket ? $ticket->order_number : 'N/A') . '</td>
-                <td><strong>Monto Total:</strong> $' . number_format($factura->monto_total, 2, ',', '.') . '</td>
+                <td style="width: 50%;"><strong>Número de Orden:</strong> ' . ($ticket ? $ticket->order_number : 'N/A') . '</td>
+                <td style="width: 50%;"><strong>Monto Total:</strong> $' . number_format($factura->monto_total, 2, ',', '.') . '</td>
+            </tr>
+            <tr>
+                <td colspan="2" style="width: 100%; text-align: right; font-weight: bold; color: #333;">
+                    Tasa BCV Referencial: 1 USD = ' . number_format($bcvRate, 2, ',', '.') . ' Bs
+                </td>
             </tr>
         </table>
         <br>
@@ -136,35 +153,50 @@ class InvoiceController extends Controller
             <thead>
                 <tr style="background-color: #f2f2f2;">
                     <th style="width: 10%; text-align: center; border: 1px solid #ddd;">ID</th>
-                    <th style="width: 40%; text-align: left; border: 1px solid #ddd;">Producto</th>
+                    <th style="width: 30%; text-align: left; border: 1px solid #ddd;">Producto</th>
                     <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Cantidad</th>
-                    <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Precio Unitario</th>
-                    <th style="width: 20%; text-align: right; border: 1px solid #ddd;">Subtotal</th>
+                    <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Precio Unit. (USD)</th>
+                    <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Subtotal (USD)</th>
+                    <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Subtotal (Bs)</th>
                 </tr>
             </thead>
             <tbody>';
 
         if ($ticketItems->isNotEmpty()) {
             foreach ($ticketItems as $item) {
+                $precioUnitarioUSD = $item->price ?? 0;
+                $subtotalItemUSD = $item->subtotal ?? 0;
+                $subtotalItemBs = $subtotalItemUSD * $bcvRate; // Calcular subtotal en Bs para el ítem
+
                 $html .= '
                     <tr>
                         <td style="width: 10%; text-align: center; border: 1px solid #ddd;">' . ($item->product_id ?? 'N/A') . '</td>
-                        <td style="width: 40%; border: 1px solid #ddd;">' . ($item->product ? $item->product->name : 'Producto Desconocido') . '</td>
+                        <td style="width: 30%; border: 1px solid #ddd;">' . ($item->product ? htmlspecialchars($item->product->name) : 'Producto Desconocido') . '</td>
                         <td style="width: 15%; text-align: right; border: 1px solid #ddd;">' . ($item->quantity ?? 'N/A') . '</td>
-                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format(($item->price ?? 0), 2, ',', '.') . '</td>
-                        <td style="width: 20%; text-align: right; border: 1px solid #ddd;">$' . number_format(($item->subtotal ?? 0), 2, ',', '.') . '</td>
+                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format($precioUnitarioUSD, 2, ',', '.') . '</td>
+                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format($subtotalItemUSD, 2, ',', '.') . '</td>
+                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">' . number_format($subtotalItemBs, 2, ',', '.') . ' Bs</td>
                     </tr>';
             }
         } else {
-            $html .= '<tr><td colspan="5" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>';
+            $html .= '<tr><td colspan="6" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>'; // colspan 6
         }
-
 
         $html .= '
             </tbody>
         </table>
         <br>
-        <p style="text-align: right; font-weight: bold; font-size: 1.2em; color: #333;">TOTAL A PAGAR: $' . number_format($factura->monto_total, 2, ',', '.') . '</p>
+        <p style="text-align: right; font-weight: bold; font-size: 1.2em; color: #333;">TOTAL A PAGAR: $' . number_format($factura->monto_total, 2, ',', '.') . '</p>';
+
+        // Añadir el total en Bs justo debajo del total en USD
+        if ($bcvRate > 0) {
+            $html .= '
+            <p style="text-align: right; font-weight: bold; font-size: 1.1em; color: #555; margin-top: 5px;">
+                TOTAL A PAGAR (Bs): ' . number_format($montoTotalBs, 2, ',', '.') . ' Bs
+            </p>';
+        }
+
+        $html .= '
         <br><br>
         <p style="text-align: center; font-size: 0.9em; color: #666;">Gracias por tu compra en Brinca Este 24 C.A.</p>
         ';
