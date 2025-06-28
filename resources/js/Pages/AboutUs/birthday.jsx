@@ -28,7 +28,7 @@ const birthday = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/about/plan basico.png"
+                        src="/img/about/plan basico.JPG"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
@@ -38,7 +38,7 @@ const birthday = () => {
             <div className="grid gap-24 lg:grid-cols-2">
             <div className="hidden lg:block">
                     <img
-                        src="/img/about/plan medio.jpeg"
+                        src="/img/about/plan medio.JPG"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
@@ -94,7 +94,7 @@ const birthday = () => {
                 </div>
                 <div className="hidden lg:block">
                     <img
-                        src="/img/about/Plan VIP.png"
+                        src="/img/about/Plan VIP.JPG"
                         alt=""
                         className="object-lefts h-full object-cover"
                     />
