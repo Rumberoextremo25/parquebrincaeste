@@ -20,7 +20,7 @@ const Home = ({ eventsFeacture, eventsFree, eventsCarousel }) => {
                 <ItemList title="Promociones" subTitle="" linkPath={route("promotion")} isLink>
                     <div className="flex flex-col items-center bg-violet-100 p-4 rounded-lg shadow-lg">
                         <img
-                            src="/img/home/IMG_1618.PNG" // Cambia esta ruta a tu imagen
+                            src="/img/home/IMG_1618.JPG" // Cambia esta ruta a tu imagen
                             alt="Promociones"
                             className="w-full h-auto max-w-lg rounded-lg border-2 border-gray-300 shadow-md transition-transform duration-300 hover:scale-105"
                         />
@@ -34,7 +34,7 @@ const Home = ({ eventsFeacture, eventsFree, eventsCarousel }) => {
                 <ItemList title="Brazaletes" subTitle="" linkPath={route("tienda")}>
                     <div className="flex flex-col items-center bg-violet-100 p-4 rounded-lg shadow-lg">
                         <img
-                            src="/img/home/IMG_1620.PNG" // Cambia esta ruta a tu imagen
+                            src="/img/home/IMG_1620.JPG" // Cambia esta ruta a tu imagen
                             alt="Brazaletes"
                             className="w-full h-60 max-w-lg rounded-lg border-2 border-gray-300 shadow-md transition-transform duration-300 hover:scale-105"
                         />
@@ -48,7 +48,7 @@ const Home = ({ eventsFeacture, eventsFree, eventsCarousel }) => {
                 <ItemList title="Paquetes" linkPath={route("package")} isLink>
                     <div className="flex flex-col items-center bg-violet-100 p-4 rounded-lg shadow-lg">
                         <img
-                            src="/img/home/IMG_1619.PNG" // Cambia esta ruta a tu imagen
+                            src="/img/home/IMG_1619.JPG" // Cambia esta ruta a tu imagen
                             alt="Paquetes"
                             className="w-full h-60 max-w-lg rounded-lg border-2 border-violet-300 shadow-md transition-transform duration-300 hover:scale-105"
                         />
