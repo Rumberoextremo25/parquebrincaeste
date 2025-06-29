@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExchangeRate;
 use App\Models\Factura;
 use App\Models\Product;
 use App\Models\Promotion;
@@ -19,20 +20,11 @@ use Illuminate\Support\Str;
 
 class CheckoutController extends Controller
 {
-    /**
-     * Display the checkout form.
-     *
-     * @param Request $request
-     * @return \Inertia\Response
-     */
-    protected $bcvService;
-    public function __construct(BcvService $bcvService)
-    {
-        $this->bcvService = $bcvService;
-    }
     public function index(Request $request)
     {
-        $bcvRate = $this->bcvService->getExchangeRate();
+        $currentExchangeRate = ExchangeRate::current();
+        $bcvRate = (float) ($currentExchangeRate->rate ?? 0);
+
         $user = $request->user();
         $cartItems = session()->get('cartItems', []);
 
@@ -44,7 +36,7 @@ class CheckoutController extends Controller
             'cartItems' => $cartItems,
             'user' => $user ? $user->toArray() : null,
             'errors' => session('errors') ? session('errors')->getBag('default')->getMessages() : [],
-            'bcvRate' => $bcvRate,
+            'bcvRate' => $bcvRate, // Esta es la tasa obtenida manualmente
         ]);
     }
 

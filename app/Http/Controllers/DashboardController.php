@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExchangeRate;
 use App\Models\Factura;
 use App\Models\Subscriber;
 use App\Models\Ticket;
@@ -21,12 +22,6 @@ use Illuminate\Contracts\View\View;
 
 class DashboardController extends Controller
 {
-    protected $bcvService;
-
-    public function __construct(BcvService $bcvService)
-    {
-        $this->bcvService = $bcvService;
-    }
     public function home(Request $request): View
     {
         $TotalUsers = User::count();
@@ -145,16 +140,26 @@ class DashboardController extends Controller
 
     public function finanzas(): View
     {
-        // --- 1. Calcular Ingresos, Gastos y Beneficio Neto Global desde la tabla Finanza ---
-        $ingresosTotales = Finanza::sum('ingreso');
-        $gastosTotales = Finanza::sum('gasto');
-        $beneficioNeto = $ingresosTotales - $gastosTotales;
+        // Obtener la tasa BCV del modelo ExchangeRate, que ahora provee la tasa manual.
+        // Aseguramos que sea siempre un float para evitar errores.
+        $currentExchangeRate = ExchangeRate::current();
+        $bcvRate = (float) ($currentExchangeRate->rate ?? 0); // Si no hay tasa, usará 0
+
+        // --- 1. Calcular Ingresos, Gastos y Beneficio Neto Global desde la tabla Finanza (en USD) ---
+        $ingresosTotalesUSD = Finanza::sum('ingreso');
+        $gastosTotalesUSD = Finanza::sum('gasto');
+        $beneficioNetoUSD = $ingresosTotalesUSD - $gastosTotalesUSD;
+
+        // --- Calcular Ingresos, Gastos y Beneficio Neto Global en Bolívares ---
+        $ingresosTotalesBs = $ingresosTotalesUSD * $bcvRate;
+        $gastosTotalesBs = $gastosTotalesUSD * $bcvRate;
+        $beneficioNetoBs = $beneficioNetoUSD * $bcvRate;
 
         // --- 2. (Opcional, basado en tu lógica anterior) Registrar/Actualizar Ingresos del Mes Actual en Finanza ---
         $currentMonth = Carbon::now()->month;
         $currentYear = Carbon::now()->year;
 
-        // Sumar ingresos del mes actual desde 'Venta' para actualizar 'Finanza'
+        // Sumar ingresos del mes actual desde 'Venta' para actualizar 'Finanza' (en USD)
         $totalIngresoMesActualDeVentas = Venta::whereYear('created_at', $currentYear)
             ->whereMonth('created_at', $currentMonth)
             ->sum('subtotal');
@@ -217,28 +222,46 @@ class DashboardController extends Controller
         $beneficioNetoData = [];
         $labelsMeses = [];
 
+        // Datos para gráficos en Bolívares
+        $ingresosDataBs = [];
+        $gastosDataBs = [];
+        $beneficioNetoDataBs = [];
+
+
         for ($i = 1; $i <= 12; $i++) {
             $mesNombre = $mesesNombres[$i];
             $labelsMeses[] = $mesNombre;
 
             // Obtener ingresos y gastos para el mes 'i' desde las colecciones (que ya vienen de Finanza)
-            $ingreso = $ingresosPorMesColeccion->get($i, 0);
-            $gasto = $gastosPorMesColeccion->get($i, 0);
+            $ingresoUSD = $ingresosPorMesColeccion->get($i, 0);
+            $gastoUSD = $gastosPorMesColeccion->get($i, 0);
 
-            $ingresosData[] = $ingreso;
-            $gastosData[] = $gasto;
-            $beneficioNetoData[] = $ingreso - $gasto;
+            $ingresosData[] = $ingresoUSD;
+            $gastosData[] = $gastoUSD;
+            $beneficioNetoData[] = $ingresoUSD - $gastoUSD;
+
+            // Calcular y almacenar datos para gráficos en Bolívares
+            $ingresosDataBs[] = $ingresoUSD * $bcvRate;
+            $gastosDataBs[] = $gastoUSD * $bcvRate;
+            $beneficioNetoDataBs[] = ($ingresoUSD - $gastoUSD) * $bcvRate;
         }
 
         // Pasa las variables a la vista
         return view('finanzas', [
-            'ingresosTotales' => $ingresosTotales,
-            'gastosTotales' => $gastosTotales,
-            'beneficioNeto' => $beneficioNeto,
+            'ingresosTotalesUSD' => $ingresosTotalesUSD,
+            'gastosTotalesUSD' => $gastosTotalesUSD,
+            'beneficioNetoUSD' => $beneficioNetoUSD,
+            'ingresosTotalesBs' => $ingresosTotalesBs, // Nuevo: Ingresos totales en Bs
+            'gastosTotalesBs' => $gastosTotalesBs,     // Nuevo: Gastos totales en Bs
+            'beneficioNetoBs' => $beneficioNetoBs,     // Nuevo: Beneficio neto en Bs
             'ingresosData' => $ingresosData,
             'gastosData' => $gastosData,
             'beneficioNetoData' => $beneficioNetoData,
             'labelsMeses' => $labelsMeses,
+            'ingresosDataBs' => $ingresosDataBs,       // Nuevo: Datos de ingresos por mes en Bs
+            'gastosDataBs' => $gastosDataBs,           // Nuevo: Datos de gastos por mes en Bs
+            'beneficioNetoDataBs' => $beneficioNetoDataBs, // Nuevo: Datos de beneficio neto por mes en Bs
+            'bcvRate' => $bcvRate,                      // Pasa la tasa BCV a la vista
         ]);
     }
 
@@ -258,8 +281,10 @@ class DashboardController extends Controller
 
     public function generarPDFVentas()
     {
-        // Obtener la tasa BCV
-        $bcvRate = $this->bcvService->getExchangeRate();
+        // Obtener la tasa BCV del modelo ExchangeRate, que ahora provee la tasa manual.
+        // Aseguramos que sea siempre un float para evitar errores.
+        $currentExchangeRate = ExchangeRate::current();
+        $bcvRate = (float) ($currentExchangeRate->rate ?? 0); // Si no hay tasa, usará 0
 
         // 1. Configuración básica de TCPDF
         $pdf = new TCPDF();

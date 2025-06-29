@@ -1,4 +1,4 @@
-@extends('layouts.app') {{-- Adjust this to your admin layout --}}
+@extends('layouts.app') {{-- Ajusta esto a tu layout de administrador --}}
 
 @section('title', 'Gestión de Tasa de Cambio')
 
@@ -21,40 +21,27 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    {{-- Contenedor principal de las tarjetas, ajustado a una columna --}}
+    <div class="grid grid-cols-1 gap-6 mb-8">
         {{-- Current Rate Display --}}
         <div class="bg-white shadow-md rounded-lg p-6">
             <h2 class="text-2xl font-semibold mb-4 text-gray-700">Tasa de Cambio Actual</h2>
             <p class="text-xl text-gray-800 mb-2">
-                <strong>Valor Activo:</strong> <span class="font-bold text-blue-600">{{ number_format($currentDbRate, 4) }}</span> Bs/USD
+                <strong>Valor Activo:</strong> <span class="font-bold text-blue-600">{{ number_format($currentDbRate, 4, ',', '.') }}</span> Bs/USD
             </p>
             <p class="text-md text-gray-600">
                 (Esta es la tasa que está siendo usada actualmente en la aplicación.)
             </p>
         </div>
 
-        {{-- Update from BCV API --}}
-        <div class="bg-white shadow-md rounded-lg p-6">
-            <h2 class="text-2xl font-semibold mb-4 text-gray-700">Actualizar desde BCV</h2>
-            <p class="text-md text-gray-800 mb-4">
-                Tasa obtenida del BCV (estimado): <span class="font-bold text-green-600">{{ number_format($currentBcvRate, 4) }}</span> Bs/USD
-            </p>
-            <p class="text-gray-700 mb-4">
-                Haz clic para obtener la tasa más reciente del BCV y actualizar el sistema.
-            </p>
-            <form action="{{ route('exchange-rates.update-bcv') }}" method="POST">
-                @csrf
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
-                    Actualizar desde BCV
-                </button>
-            </form>
-        </div>
+        {{-- El bloque de "Update from BCV API" ha sido eliminado intencionalmente,
+             ya que solo quieres la actualización manual. --}}
     </div>
 
     {{-- Manual Rate Update Form --}}
     <div class="bg-white shadow-md rounded-lg p-6 mb-8">
         <h2 class="text-2xl font-semibold mb-4 text-gray-700">Actualización Manual de Tasa</h2>
-        <form action="{{ route('exchange-rates.update-manual') }}" method="POST">
+        <form action="{{ route('exchange_rates.update_manual') }}" method="POST">
             @csrf
             <div class="mb-4">
                 <label for="new_rate" class="block text-gray-700 text-sm font-bold mb-2">Nueva Tasa (Bs/USD)</label>
@@ -97,7 +84,7 @@
                         @foreach ($history as $rate)
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ number_format($rate->rate, 4) }}
+                                    {{ number_format($rate->rate, 4, ',', '.') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $rate->source }}

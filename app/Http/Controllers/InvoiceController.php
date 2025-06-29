@@ -3,29 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Factura; // Asume que tu modelo de Factura es correcto
+use App\Models\ExchangeRate; // Importa el modelo ExchangeRate para obtener la tasa manual
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon; // Para formatear fechas
 use TCPDF; // Para la generación de PDFs
-use App\Services\BcvService; // Asegúrate de importar tu servicio BCV
+// use App\Services\BcvService; // Asegúrate de NO importar tu servicio BCV, ya no se usará aquí
 
 class InvoiceController extends Controller
 {
-    protected $bcvService;
-
-    // Inyecta el BcvService en el constructor
-    public function __construct(BcvService $bcvService)
-    {
-        $this->bcvService = $bcvService;
-    }
-
-    /**
-     * Descarga el comprobante de la factura en formato PDF por su ID.
-     * La factura se muestra directamente en el navegador.
-     *
-     * @param Factura $factura La instancia de la factura a descargar (inyectada por Laravel).
-     * @return \Illuminate\Http\Response
-     */
     public function downloadInvoiceById(Factura $factura) // Utiliza Route Model Binding
     {
         // Lógica de autorización:
@@ -74,8 +60,10 @@ class InvoiceController extends Controller
      */
     private function generatePdfResponse(Factura $factura)
     {
-        // Obtener la tasa BCV aquí
-        $bcvRate = $this->bcvService->getExchangeRate();
+        // Obtener la tasa BCV del modelo ExchangeRate, que ahora provee la tasa manual.
+        // Aseguramos que sea siempre un float para evitar errores.
+        $currentExchangeRate = ExchangeRate::current();
+        $bcvRate = (float) ($currentExchangeRate->rate ?? 0); // Si no hay tasa, usará 0
 
         // Instancia de TCPDF
         $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
