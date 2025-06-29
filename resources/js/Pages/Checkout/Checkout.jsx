@@ -1,10 +1,10 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, Fragment } from 'react'; // Eliminado useCallback
 import Layout from '@/Layouts/Layout';
 import BannerHero from '@/Components/Hero/BannerHero';
 import Modal from '@/Components/Modal';
 import { router } from '@inertiajs/react';
 
-// --- INICIO DE LA SOLUCIÓN: Componente InputField envuelto en React.memo ---
+// --- Componente InputField envuelto en React.memo (ideal para optimización) ---
 const InputField = React.memo(({ type, name, label, value, onChange, required, readOnly, placeholder, error }) => {
     return (
         <div className="mb-4">
@@ -24,9 +24,9 @@ const InputField = React.memo(({ type, name, label, value, onChange, required, r
         </div>
     );
 });
-// --- FIN DE LA SOLUCIÓN ---
 
-const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: initialAvailableBanks, bcvRate }) => {
+// --- Componente principal Checkout ---
+const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialBcvRate }) => {
     const [localCartItems, setLocalCartItems] = useState(initialCartItems);
     const [formData, setFormData] = useState({
         nombre_completo: user?.name || '',
@@ -46,7 +46,12 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [totalUSD, setTotalUSD] = useState(0);
-    const [totalBs, setTotalBs] = useState(0); // Nuevo estado para el total en Bolívares
+
+    // *** Usamos la tasa BCV inicial que viene del backend, sin intentar buscarla aquí ***
+    const [currentBcvRate, setCurrentBcvRate] = useState(initialBcvRate);
+    // *** Eliminamos isFetchingRate ya que no haremos fetch en el frontend ***
+
+    const [totalBs, setTotalBs] = useState(0);
     const [showMobilePaymentInfoModal, setShowMobilePaymentInfoModal] = useState(false);
     const [showMobilePaymentForm, setShowMobilePaymentForm] = useState(false);
 
@@ -57,18 +62,21 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
         telefono: '(0412) 350 88 26'
     };
 
+    // *** FUNCIÓN fetchLatestBcvRate Y SU LÓGICA ASOCIADA HAN SIDO ELIMINADAS ***
+
+    // *** EFECTO PARA CALCULAR TOTALES CUANDO CAMBIAN LOS ITEMS O LA TASA ***
     useEffect(() => {
         const calculatedTotalUSD = localCartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
         setTotalUSD(calculatedTotalUSD);
         setFormData((prevData) => ({ ...prevData, monto: calculatedTotalUSD }));
 
-        // Calcular el monto en Bolívares usando la tasa del BCV
-        if (bcvRate > 0) {
-            setTotalBs(calculatedTotalUSD * bcvRate);
+        // Calcula el total en Bolívares usando la tasa actual (que viene de las props)
+        if (currentBcvRate > 0) {
+            setTotalBs(calculatedTotalUSD * currentBcvRate);
         } else {
-            setTotalBs(0); // O manejar como prefieras si la tasa no está disponible
+            setTotalBs(0); // O manejar como un error si la tasa es 0
         }
-    }, [localCartItems, bcvRate]); // Asegúrate de que bcvRate sea una dependencia
+    }, [localCartItems, currentBcvRate]); // Se ejecuta cuando cartItems o currentBcvRate cambian
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -77,9 +85,12 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
 
             if (name === 'paymentMethod') {
                 if (value === 'mobile-payment') {
+                    // *** CUANDO SE SELECCIONA PAGO MÓVIL, YA NO BUSCAMOS LA TASA AQUÍ.
+                    // *** currentBcvRate ya tiene el valor inicial que llegó del backend.
                     setShowMobilePaymentInfoModal(true);
                     setShowMobilePaymentForm(true);
                 } else {
+                    // Limpia los campos específicos de pago móvil si se cambia el método
                     newState.banco_remitente = '';
                     newState.numero_telefono_remitente = '';
                     newState.cedula_remitente = '';
@@ -107,7 +118,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
             ...formData,
             monto: totalUSD, // Siempre enviamos el monto en USD al backend
             monto_bs: totalBs.toFixed(2), // Agregamos el monto en Bs para referencia o validación
-            bcv_rate_used: bcvRate, // También enviamos la tasa utilizada
+            bcv_rate_used: currentBcvRate, // Enviamos la tasa que el frontend está usando (la que vino del backend)
             items: localCartItems.map(item => ({
                 product_id: item.id,
                 quantity: item.quantity,
@@ -115,6 +126,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
             }))
         };
 
+        // Asegúrate de limpiar los datos de pago móvil si no es el método seleccionado
         if (dataToSend.paymentMethod !== 'mobile-payment') {
             dataToSend = {
                 ...dataToSend,
@@ -129,7 +141,8 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
             onStart: () => setLoading(true),
             onFinish: () => setLoading(false),
             onSuccess: () => {
-                setLocalCartItems([]);
+                setLocalCartItems([]); // Vaciar carrito si la compra es exitosa
+                // Opcional: Redirigir a una página de confirmación
             },
             onError: (inertiaErrors) => {
                 if (typeof inertiaErrors === 'string') {
@@ -145,7 +158,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
             },
         });
     };
-
 
     const handleQuantityChange = (productId, change) => {
         setLocalCartItems((prevItems) => {
@@ -253,9 +265,10 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                                     <p className="text-gray-700 mb-2 text-center text-sm font-semibold">
                                         El monto en Bolívares se calcula con la tasa actual del BCV.
                                     </p>
-                                    {bcvRate > 0 && (
+                                    {/* Ya no hay indicador de carga porque la tasa viene directamente de las props */}
+                                    {currentBcvRate > 0 && (
                                         <p className="text-gray-600 mb-4 text-center text-xs">
-                                            Tasa BCV actual: **1 USD = {bcvRate.toFixed(2)} Bs**
+                                            Tasa BCV actual: **1 USD = {currentBcvRate.toFixed(2)} Bs**
                                         </p>
                                     )}
 
@@ -276,7 +289,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                                         <li className="text-xl font-bold text-green-700 mt-4">
                                             <strong>Monto a pagar:</strong>
                                             <span className="text-green-800 ml-2">${totalUSD.toFixed(2)}</span>
-                                            {bcvRate > 0 && (
+                                            {currentBcvRate > 0 && (
                                                 <span className="text-green-800 ml-2">({totalBs.toFixed(2)} Bs)</span>
                                             )}
                                         </li>
@@ -338,11 +351,11 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                                         error={errors.numero_referencia_pago}
                                     />
                                     <InputField
-                                        type="text" // Cambiado a text para mostrar ambos montos
+                                        type="text"
                                         name="monto"
                                         label="Monto"
-                                        // Modificamos el `value` para mostrar USD y Bs
-                                        value={`${totalUSD.toFixed(2)} USD ${bcvRate > 0 ? `(${totalBs.toFixed(2)} Bs)` : ''}`}
+                                        // Muestra USD y el equivalente en Bs con la tasa actual
+                                        value={`${totalUSD.toFixed(2)} USD ${currentBcvRate > 0 ? `(${totalBs.toFixed(2)} Bs)` : ''}`}
                                         readOnly
                                         error={errors.monto}
                                     />
@@ -394,7 +407,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, availableBanks: i
                             )}
                             <hr className="my-4" />
                             <p className="text-right">Total: <span className="font-bold text-gray-800">${totalUSD.toFixed(2)}</span></p>
-                            {bcvRate > 0 && (
+                            {currentBcvRate > 0 && (
                                 <p className="text-right text-sm text-gray-600">
                                     Total en Bs: <span className="font-bold text-gray-800">{totalBs.toFixed(2)} Bs (Tasa BCV)</span>
                                 </p>
