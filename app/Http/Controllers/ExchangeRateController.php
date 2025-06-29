@@ -6,67 +6,74 @@ use App\Http\Controllers\Controller;
 use App\Models\ExchangeRate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache; // To clear the BCV rate cache
-use App\Services\BcvService; // Assuming you have this service from previous discussion
+use Illuminate\Support\Facades\Cache; // Para limpiar la caché
 
 class ExchangeRateController extends Controller
 {
-    protected $bcvService;
+    // Ya no necesitamos inyectar BcvService si no lo vamos a usar para obtener la tasa automáticamente
+    // public function __construct(BcvService $bcvService)
+    // {
+    //     $this->bcvService = $bcvService;
+    // }
 
-    public function __construct(BcvService $bcvService)
-    {
-        $this->bcvService = $bcvService;
-    }
     public function index()
     {
-        // Get the current rate from the database (latest entry)
+        // Obtener la tasa actual de la base de datos (última entrada)
+        // Se asume que 'current()' es un scope en tu modelo ExchangeRate que obtiene la última tasa
         $currentDbRate = ExchangeRate::current();
 
-        // Get the BCV rate from the service (which uses its own cache)
-        $currentBcvRate = $this->bcvService->getExchangeRate();
+        // Ya no obtenemos la tasa del BCV de forma automática aquí
+        // $currentBcvRate = $this->bcvService->getExchangeRate(); // Esto se elimina
 
-        // Get the history of exchange rates for the table
-        $history = ExchangeRate::with('user') // Eager load the user who made the change
-            ->latest() // Order by latest changes first
-            ->paginate(10); // Paginate the results
+        // Obtener el historial de tasas de cambio para la tabla
+        $history = ExchangeRate::with('user') // Cargar el usuario que hizo el cambio
+            ->latest() // Ordenar por los cambios más recientes primero
+            ->paginate(10); // Paginar los resultados
 
-        return view('exchange_rates', [ // This will be our Blade view
+        return view('exchange_rates', [ // Esta será nuestra vista de Blade
             'currentDbRate' => $currentDbRate ? $currentDbRate->rate : 0,
-            'currentBcvRate' => $currentBcvRate,
+            // 'currentBcvRate' ya no se pasa a la vista
             'history' => $history,
         ]);
     }
+
     public function updateManual(Request $request)
     {
         $request->validate([
             'new_rate' => 'required|numeric|min:0.0001',
         ]);
 
-        // Create a new entry in the history table
+        // Crear una nueva entrada en la tabla de historial
         ExchangeRate::create([
             'rate' => $request->new_rate,
             'user_id' => Auth::id(),
-            'source' => 'Manual',
+            'source' => 'Manual', // Indicamos claramente que la fuente es manual
         ]);
+
+        // Actualizar la caché de la tasa activa con el valor manual
+        // Esta caché es la que probablemente se usa en otras partes de tu aplicación
         Cache::put('current_active_exchange_rate', $request->new_rate, now()->addHours(24));
-        Cache::forget('bcv_exchange_rate');
 
+        // Es buena práctica limpiar cualquier caché anterior de la tasa BCV si existiera,
+        // para asegurar que solo la tasa manual sea la considerada.
+        Cache::forget('bcv_exchange_rate'); // Si tenías una caché específica para la tasa BCV externa
 
-        return redirect()->back()->with('success', 'Tasa de cambio actualizada manualmente a ' . $request->new_rate . ' Bs/USD.');
+        return redirect()->back()->with('success', 'Tasa de cambio actualizada manualmente a ' . number_format($request->new_rate, 4) . ' Bs/USD.');
     }
+
+    // El método updateFromBcv se elimina completamente ya que no se desea la actualización automática.
+    /*
     public function updateFromBcv(Request $request)
     {
         try {
             $newRate = $this->bcvService->refreshExchangeRate();
 
             if ($newRate > 0) {
-                // Store the updated rate in your history database
                 ExchangeRate::create([
                     'rate' => $newRate,
                     'user_id' => Auth::id(),
                     'source' => 'BCV API',
                 ]);
-                // Also update the general active rate if you have one
                 Cache::put('current_active_exchange_rate', $newRate, now()->addHours(24));
 
                 return redirect()->back()->with('success', "Tasa BCV actualizada y registrada a: {$newRate} Bs/USD.");
@@ -77,4 +84,5 @@ class ExchangeRateController extends Controller
             return redirect()->back()->with('error', 'Error al intentar actualizar la tasa BCV: ' . $e->getMessage());
         }
     }
+    */
 }

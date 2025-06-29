@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Ticket; // Usar tu modelo Ticket
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redirect;
 use TCPDF;
 
 class TicketController extends Controller
@@ -257,5 +258,26 @@ class TicketController extends Controller
         // Salida del PDF: 'I' para mostrar en el navegador, 'D' para forzar la descarga.
         // Usamos 'I' para "Inline", lo que lo muestra en el navegador por defecto.
         return $pdf->Output($fileName, 'I');
+    }
+
+    public function validateTicket(Ticket $ticket)
+    {
+        // Aquí podrías agregar lógica de autorización (e.g., solo administradores)
+        // if (!auth()->user()->isAdmin()) {
+        //     abort(403, 'No tienes permiso para validar tickets.');
+        // }
+
+        // Asegurarse de que el ticket no esté ya validado o en un estado final
+        if ($ticket->status !== 'validado') {
+            $ticket->status = 'validado'; // Cambiar el estado a 'validado'
+            $ticket->save(); // Guardar el cambio en la base de datos
+
+            // Opcional: Puedes registrar esta acción, enviar notificaciones, etc.
+            // Log::info("Ticket {$ticket->id} validado por el usuario " . auth()->id());
+
+            return Redirect::back()->with('success', 'Ticket validado correctamente.');
+        } else {
+            return Redirect::back()->with('info', 'El ticket ya se encuentra validado.');
+        }
     }
 }

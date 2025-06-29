@@ -198,6 +198,7 @@ Route::get('/invoice/numero/{identifier}/download', [TicketController::class, 'd
      ->where('identifier', '[\w-]+') // Permite letras, números y guiones para el número de factura
      ->defaults('type', 'numero') // Pasa 'numero' como el segundo parámetro al método downloadInvoice
      ->name('ticket.invoice.download_by_number');
+Route::put('/tickets/{ticket}/validate', [TicketController::class, 'validateTicket'])->name('tickets.validate');
 
 
 // RUTA DEL REPORTE PARA COMPROBANTE DE COMPRA
@@ -211,8 +212,14 @@ Route::get('/invoice/numero/{numero_factura}/download', [InvoiceController::clas
      ->name('invoice.download_by_number'); // Nuevo nombre para esta ruta
 
 // RUTA PARA LA VISTA DE CAMBIAR TASA DOLAR
+    Route::middleware(['auth'])->group(function () {
+    // Ruta para mostrar la página de gestión de tasas
     Route::get('/exchange-rates', [ExchangeRateController::class, 'index'])->name('exchange-rates.index');
-    Route::post('/exchange-rates/update-manual', [ExchangeRateController::class, 'updateManual'])->name('exchange-rates.update-manual');
-    Route::post('/exchange-rates/update-bcv', [ExchangeRateController::class, 'updateFromBcv'])->name('exchange-rates.update-bcv');
+    // Ruta para la actualización MANUAL de la tasa de cambio
+    Route::post('/exchange-rates/manual', [ExchangeRateController::class, 'updateManual'])->name('exchange_rates.update_manual');
+
+    // La ruta para la actualización automática desde BCV ha sido eliminada.
+    // Route::post('/exchange-rates/from-bcv', [ExchangeRateController::class, 'updateFromBcv'])->name('exchange_rates.update_from_bcv');
+});
 
 require __DIR__ . '/auth.php';
