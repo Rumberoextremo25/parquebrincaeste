@@ -57,7 +57,7 @@ const Section1 = () => {
                     {/* Columna de Imagen - A la derecha por defecto */}
                     <div className="lg:w-1/2 w-full">
                         <img
-                            src="/img/about/IMG_2749.WEBP" // Asegúrate de que esta ruta sea correcta
+                            src="/img/about/IMG_2749.webp" // Asegúrate de que esta ruta sea correcta
                             alt="Parque de Trampolines Brinca Este"
                             className="w-full h-96 object-cover rounded-2xl shadow-2xl transition-transform duration-500 ease-in-out hover:scale-105"
                             loading="lazy" // Carga perezosa para mejor rendimiento

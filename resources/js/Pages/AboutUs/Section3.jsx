@@ -80,7 +80,7 @@ const Section3 = () => {
                     {/* Columna de Imagen */}
                     <div className="lg:w-1/2 w-full">
                         <img
-                            src="/img/about/cumpleaños.WEBP"
+                            src="/img/about/cumpleaños.webp"
                             alt="Celebración de Cumpleaños en Brinca Este"
                             className="w-full h-96 object-cover rounded-2xl shadow-2xl transition-transform duration-500 ease-in-out hover:scale-105"
                             loading="lazy"

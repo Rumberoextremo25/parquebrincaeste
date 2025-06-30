@@ -4,17 +4,17 @@ import React, { useState, useEffect, useRef } from "react";
 
 const Gallery = () => {
     const imgGallery = [
-        "/img/about/IMG_2748.WEBP",
-        "/img/about/IMG_2749.WEBP",
-        "/img/about/IMG_2750.WEBP",
-        "/img/about/IMG_2752.WEBP",
-        "/img/about/IMG_2753.WEBP",
-        "/img/about/IMG_2754.WEBP",
-        "/img/about/IMG_2755.WEBP",
-        "/img/about/IMG_2756.WEBP",
-        "/img/about/IMG_3132.WEBP",
-        "/img/about/IMG_8396.WEBP",
-        "/img/about/IMG_8397.WEBP",
+        "/img/about/IMG_2748.webp",
+        "/img/about/IMG_2749.webp",
+        "/img/about/IMG_2750.webp",
+        "/img/about/IMG_2752.webp",
+        "/img/about/IMG_2753.webp",
+        "/img/about/IMG_2754.webp",
+        "/img/about/IMG_2755.webp",
+        "/img/about/IMG_2756.webp",
+        "/img/about/IMG_3132.webp",
+        "/img/about/IMG_8396.webp",
+        "/img/about/IMG_8397.webp",
     ];
 
     const [currentSlide, setCurrentSlide] = useState(0); // Estado para la diapositiva actual
