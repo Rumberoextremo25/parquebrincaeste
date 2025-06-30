@@ -14,7 +14,7 @@ const ContactUs = () => {
             <BannerHero
                 title="CONTACTA CON NOSOTROS"
                 desc="Estamos aquí para ayudarte. Si tienes alguna pregunta, sugerencia o necesitas asistencia, no dudes en comunicarte con nuestro equipo."
-                img="/img/about/IMG_2748.PNG" // Puedes cambiar esta imagen por una más adecuada para Contacto
+                //img="/img/about/IMG_2748.PNG" // Puedes cambiar esta imagen por una más adecuada para Contacto
             />
 
             <div className="container mx-auto p-4 py-16 sm:py-24"> {/* Contenedor principal con más padding vertical */}
