@@ -279,12 +279,17 @@ class DashboardController extends Controller
         return $totalDiaActual;
     }
 
-    public function generarPDFVentas()
+    public function generarPDFVentas(Request $request) // <-- Ahora acepta el objeto Request
     {
-        // Obtener la tasa BCV del modelo ExchangeRate, que ahora provee la tasa manual.
-        // Aseguramos que sea siempre un float para evitar errores.
+        // Obtener fechas del Request o establecer un valor por defecto (ej. todo el historial)
+        // Carbon::parse asegura que la cadena de fecha se convierta en un objeto Carbon
+        // ->startOfDay() y ->endOfDay() aseguran que el rango incluya todo el día seleccionado
+        $fromDate = $request->input('from_date') ? Carbon::parse($request->input('from_date'))->startOfDay() : null;
+        $toDate = $request->input('to_date') ? Carbon::parse($request->input('to_date'))->endOfDay() : null;
+
+        // Obtener la tasa BCV del modelo ExchangeRate
         $currentExchangeRate = ExchangeRate::current();
-        $bcvRate = (float) ($currentExchangeRate->rate ?? 0); // Si no hay tasa, usará 0
+        $bcvRate = (float) ($currentExchangeRate->rate ?? 0);
 
         // 1. Configuración básica de TCPDF
         $pdf = new TCPDF();
@@ -299,19 +304,34 @@ class DashboardController extends Controller
         $pdf->AddPage();
 
         // 2. Obtener los datos de las ventas con sus productos relacionados
-        // Asegúrate que 'Venta' y 'product' existen y están bien relacionados en tu modelo
-        $ventas = Venta::with('product')->get();
+        $query = Venta::with('product');
+
+        // ¡APLICAR LOS FILTROS DE FECHA AQUÍ!
+        if ($fromDate && $toDate) {
+            $query->whereBetween('fecha', [$fromDate, $toDate]);
+            $reportDateRange = ' desde ' . $fromDate->format('d/m/Y') . ' hasta ' . $toDate->format('d/m/Y');
+        } elseif ($fromDate) {
+            $query->where('fecha', '>=', $fromDate);
+            $reportDateRange = ' desde ' . $fromDate->format('d/m/Y');
+        } elseif ($toDate) {
+            $query->where('fecha', '<=', $toDate);
+            $reportDateRange = ' hasta ' . $toDate->format('d/m/Y');
+        } else {
+            $reportDateRange = ' (Histórico Completo)'; // Si no hay filtros, se muestra todo
+        }
+
+        $ventas = $query->orderBy('fecha', 'asc')->get(); // Ordenar por fecha para mejor lectura del reporte
 
         // Inicializar contadores para los totales
-        $totalVendidoUSD = 0; // Renombrado para claridad
-        $totalVendidoBs = 0; // Nuevo total en Bs
+        $totalVendidoUSD = 0;
+        $totalVendidoBs = 0;
         $cantidadTotalProductos = 0;
         $cantidadCalcetines = 0;
         $cantidadBrazaletes = 0;
 
-        // --- Encabezado del reporte con la tasa BCV ---
+        // --- Encabezado del reporte con la tasa BCV y el rango de fechas ---
         $html = '<h1>Reporte de Ventas</h1>';
-        $html .= '<p><strong>Fecha del Reporte:</strong> ' . Carbon::now()->format('d/m/Y H:i') . '</p>';
+        $html .= '<p><strong>Periodo del Reporte:</strong> ' . Carbon::now()->format('d/m/Y H:i') . ' ' . $reportDateRange . '</p>'; // Mostrar el rango seleccionado
         if ($bcvRate > 0) {
             $html .= '<p><strong>Tasa BCV (referencial):</strong> 1 USD = ' . number_format($bcvRate, 2, ',', '.') . ' Bs</p>';
         } else {
@@ -319,6 +339,7 @@ class DashboardController extends Controller
         }
         $html .= '<br>'; // Espacio
 
+        // ... (el resto de tu HTML para la tabla, totales, etc. permanece igual) ...
         // 3. Encabezados de la tabla
         $html .= '<table border="1" cellpadding="4" cellspacing="0">'; // Añadido cellspacing para mejor visualización
         $html .= '<thead><tr>';
@@ -336,67 +357,51 @@ class DashboardController extends Controller
             $nombreProducto = $venta->product ? $venta->product->name : 'N/A';
             $productCategory = $venta->product ? $venta->product->category : null;
 
-            // Calcula el precio unitario y subtotal en USD para esta línea (si no vienen directamente de la DB)
-            $precioUnitarioUSD = $venta->price; // Asumiendo que $venta->price es el precio unitario en USD
-            $subtotalLineaUSD = $venta->subtotal; // Asumiendo que $venta->subtotal es el subtotal de la línea en USD
+            $precioUnitarioUSD = $venta->price;
+            $subtotalLineaUSD = $venta->subtotal;
 
-            // Calcular subtotal en Bolívares
             $subtotalLineaBs = $subtotalLineaUSD * $bcvRate;
 
             $html .= '<tr>';
             $html .= '<td style="width: 10%;">#' . $venta->id . '</td>';
-            $html .= '<td style="width: 25%;">' . htmlspecialchars($nombreProducto) . '</td>'; // Usar htmlspecialchars para seguridad
+            $html .= '<td style="width: 25%;">' . htmlspecialchars($nombreProducto) . '</td>';
             $html .= '<td style="width: 10%; text-align: center;">' . $venta->quantity . '</td>';
             $html .= '<td style="width: 15%; text-align: right;">$' . number_format($precioUnitarioUSD, 2, ',', '.') . '</td>';
             $html .= '<td style="width: 15%; text-align: right;">$' . number_format($subtotalLineaUSD, 2, ',', '.') . '</td>';
-            $html .= '<td style="width: 15%; text-align: right;">' . number_format($subtotalLineaBs, 2, ',', '.') . ' Bs</td>'; // Monto en Bs
+            $html .= '<td style="width: 15%; text-align: right;">' . number_format($subtotalLineaBs, 2, ',', '.') . ' Bs</td>';
             $html .= '<td style="width: 10%; text-align: center;">' . ($venta->fecha ? Carbon::parse($venta->fecha)->format('d/m/Y') : Carbon::parse($venta->created_at)->format('d/m/Y')) . '</td>';
             $html .= '</tr>';
 
-            // Acumular los totales generales
             $totalVendidoUSD += $subtotalLineaUSD;
-            $totalVendidoBs += $subtotalLineaBs; // Acumular total en Bs
+            $totalVendidoBs += $subtotalLineaBs;
             $cantidadTotalProductos += $venta->quantity;
 
-            // Acumular cantidades por las categorías específicas
-            if ($productCategory === 'Medias') { // Ajustado a 'Medias' (capitalización)
+            if ($productCategory === 'Medias') {
                 $cantidadCalcetines += $venta->quantity;
-            } elseif ($productCategory === 'Brazalete') { // Ajustado a 'Brazalete' (capitalización)
+            } elseif ($productCategory === 'Brazalete') {
                 $cantidadBrazaletes += $venta->quantity;
             }
         }
 
         $html .= '</tbody></table>';
 
-        // 5. Agregar la sección de totales al final del reporte
+        // 5. Mostrar Totales al final de la tabla
         $html .= '<br><br>';
-        $html .= '<table border="0" cellpadding="4" cellspacing="0" style="width: 100%;">'; // Usar el 100% del ancho
-        $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">TOTAL VENDIDO (USD):</td>'; // Etiqueta clara
-        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">$' . number_format($totalVendidoUSD, 2, ',', '.') . '</td>';
-        $html .= '</tr>';
-        $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">TOTAL VENDIDO (Bs):</td>'; // Nueva fila para total en Bs
-        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">' . number_format($totalVendidoBs, 2, ',', '.') . ' Bs</td>';
-        $html .= '</tr>';
-        $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right; font-weight: bold;">CANTIDAD TOTAL DE PRODUCTOS:</td>';
-        $html .= '<td style="width: 20%; text-align: right; font-weight: bold;">' . number_format($cantidadTotalProductos, 0, ',', '.') . '</td>';
-        $html .= '</tr>';
-        // Filas para el desglose por categorías específicas
-        $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Calcetines:</td>';
-        $html .= '<td style="width: 20%; text-align: right;">' . number_format($cantidadCalcetines, 0, ',', '.') . '</td>';
-        $html .= '</tr>';
-        $html .= '<tr>';
-        $html .= '<td style="width: 80%; text-align: right;">- Cantidad de Brazaletes:</td>';
-        $html .= '<td style="width: 20%; text-align: right;">' . number_format($cantidadBrazaletes, 0, ',', '.') . '</td>';
-        $html .= '</tr>';
+        $html .= '<h3>Resumen del Reporte</h3>';
+        $html .= '<table border="1" cellpadding="4" cellspacing="0" style="width: 50%;">';
+        $html .= '<tr><td><strong>Total Vendido (USD):</strong></td><td style="text-align: right;">$' . number_format($totalVendidoUSD, 2, ',', '.') . '</td></tr>';
+        $html .= '<tr><td><strong>Total Vendido (Bs):</strong></td><td style="text-align: right;">' . number_format($totalVendidoBs, 2, ',', '.') . ' Bs</td></tr>';
+        $html .= '<tr><td><strong>Cantidad Total de Productos:</strong></td><td style="text-align: right;">' . $cantidadTotalProductos . ' unidades</td></tr>';
+        $html .= '<tr><td><strong>Cantidad de Medias Vendidas:</strong></td><td style="text-align: right;">' . $cantidadCalcetines . ' unidades</td></tr>';
+        $html .= '<tr><td><strong>Cantidad de Brazaletes Vendidos:</strong></td><td style="text-align: right;">' . $cantidadBrazaletes . ' unidades</td></tr>';
         $html .= '</table>';
 
-        // 6. Escribir HTML y generar PDF
+
+        // 6. Escribir el HTML al PDF y generar la salida
         $pdf->writeHTML($html, true, false, true, false, '');
-        $pdf->Output('reporte_ventas.pdf', 'I');
+
+        // Cierra y genera el documento PDF (I para mostrar en el navegador, D para descargar)
+        $pdf->Output('reporte_ventas_' . Carbon::now()->format('Ymd_His') . '.pdf', 'I');
     }
 
     public function obtenerUsuariosYVisitantes()

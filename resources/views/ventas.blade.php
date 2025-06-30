@@ -1,6 +1,4 @@
-@extends('layouts.app') <!-- Asegúrate de tener un layout base -->
-
-<style>
+@extends('layouts.app') <style>
 /* Estilos generales */
 body {
     background-color: #f0f4f8; /* Fondo claro */
@@ -51,33 +49,91 @@ h1 {
     font-size: 1.2rem; /* Tamaño de fuente del botón */
     border-radius: 5px; /* Bordes redondeados */
 }
+
+/* Estilos para el formulario de filtro */
+.filter-form {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px; /* Espacio entre elementos */
+    flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas pequeñas */
+}
+.filter-form label {
+    font-weight: bold;
+    color: #555;
+}
+.filter-form input[type="date"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    flex-grow: 1; /* Permite que los inputs crezcan */
+    max-width: 200px; /* Ancho máximo para los inputs de fecha */
+}
+.filter-form button {
+    /* Utiliza tus estilos .btn existentes o específicos */
+    background-color: #28a745; /* Verde para el botón de filtrar */
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 10px 20px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+.filter-form button:hover {
+    background-color: #218838;
+}
+
 </style>
 
 @section('content')
 <div class="container mt-5">
     <div class="row text-center mt-4">
         <div class="col-md-12 text-right">
-            <a href="{{ route('ventas.pdf') }}" class="btn btn-danger btn-lg" target="_blank">Ver Ventas en PDF</a>
+            {{-- EL BOTÓN "Ver Ventas en PDF" AHORA NECESITA EL FORMULARIO --}}
+            {{-- Vamos a mover el botón dentro de un formulario de filtro --}}
         </div>
     </div>
 
-    <h1 class="text-center mb-4 text-primary">Ventas</h1> {{-- Título de la página actualizado a "Ventas" --}}
+    <h1 class="text-center mb-4 text-primary">Ventas</h1>
+
+    {{-- FORMULARIO DE FILTRO DE FECHAS --}}
+    <div class="filter-form">
+        {{-- El action apunta a la misma ruta que genera el PDF --}}
+        <form action="{{ route('ventas.pdf') }}" method="GET" class="d-flex flex-wrap justify-content-center align-items-center gap-3">
+            <label for="from_date">Desde:</label>
+            <input type="date" id="from_date" name="from_date"
+                   value="{{ request('from_date', Carbon\Carbon::now()->startOfMonth()->format('Y-m-d')) }}"> {{-- Valor por defecto: inicio del mes --}}
+
+            <label for="to_date">Hasta:</label>
+            <input type="date" id="to_date" name="to_date"
+                   value="{{ request('to_date', Carbon\Carbon::now()->format('Y-m-d')) }}"> {{-- Valor por defecto: hoy --}}
+
+            <button type="submit" class="btn btn-primary btn-lg">Generar PDF con Filtro</button>
+        </form>
+    </div>
+    {{-- FIN FORMULARIO DE FILTRO --}}
 
     <div class="row text-center mb-4">
         <div class="col-sm-6 col-md-4 col-lg-3">
             <div class="card shadow-lg border-light rounded">
                 <div class="card-body bg-gradient-success text-white">
                     <h2 class="card-title">Ventas Diarias</h2>
-                    <p class="card-text display-4">${{ number_format($ventasDiarias ?? 0, 2) }}</p> {{-- Usando $ventasDiarias del controlador --}}
+                    <p class="card-text display-4">${{ number_format($ventasDiarias ?? 0, 2) }}</p>
                 </div>
             </div>
         </div>
-        <!-- Puedes agregar más tarjetas aquí si es necesario -->
-    </div>
+        </div>
 
     <div class="row">
         <div class="col-md-12">
-            <h2 class="text-center mb-4">Gráficos de Ventas Mensuales</h2> {{-- Título del gráfico actualizado --}}
+            <h2 class="text-center mb-4">Gráficos de Ventas Mensuales</h2>
             <canvas id="ventasChart" class="w-100"></canvas>
         </div>
     </div>
@@ -98,7 +154,7 @@ h1 {
                 labels: labelsMeses, // Datos dinámicos de los meses
                 datasets: [{
                     label: 'Ventas por Mes',
-                    data: ventasData,      // Datos dinámicos de las ventas
+                    data: ventasData,
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 2,
                     fill: false
