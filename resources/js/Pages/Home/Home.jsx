@@ -10,7 +10,7 @@ const Home = ({ eventsFeacture, eventsFree, eventsCarousel }) => {
         <Layout title="Inicio">
             {/* Componente Hero Banner - Se mantiene su uso ya que su diseño es externo */}
             <BannerHero
-                img="/img/home/IMG_9783.jpg"
+                img="/img/home/IMG_9783.WEBP"
                 title="Reserva tus entradas para la hora que prefieras"
                 desc="Emisión de entradas segura y confiable. ¡Su entrada para entretenimiento!"
             />
@@ -23,7 +23,7 @@ const Home = ({ eventsFeacture, eventsFree, eventsCarousel }) => {
                         <div className="relative overflow-hidden rounded-xl shadow-2xl transition-transform duration-500 ease-in-out hover:scale-105 group">
                             {/* Imagen de Fondo con efecto de overlay */}
                             <img
-                                src="/img/home/IMG_1618.PNG" // Cambia esta ruta a tu imagen
+                                src="/img/home/IMG_1618.WEBP" // Cambia esta ruta a tu imagen
                                 alt="Promociones - Brinca Este"
                                 className="w-full h-64 object-cover object-center transition-all duration-500 group-hover:filter group-hover:brightness-75"
                                 loading="lazy" // Carga perezosa
@@ -50,7 +50,7 @@ const Home = ({ eventsFeacture, eventsFree, eventsCarousel }) => {
                         <div className="relative overflow-hidden rounded-xl shadow-2xl transition-transform duration-500 ease-in-out hover:scale-105 group">
                             {/* Imagen de Fondo con efecto de overlay */}
                             <img
-                                src="/img/home/IMG_1620.PNG" // Cambia esta ruta a tu imagen
+                                src="/img/home/IMG_1620.WEBP" // Cambia esta ruta a tu imagen
                                 alt="Brazaletes - Brinca Este"
                                 className="w-full h-64 object-cover object-center transition-all duration-500 group-hover:filter group-hover:brightness-75"
                                 loading="lazy" // Carga perezosa
@@ -77,7 +77,7 @@ const Home = ({ eventsFeacture, eventsFree, eventsCarousel }) => {
                         <div className="relative overflow-hidden rounded-xl shadow-2xl transition-transform duration-500 ease-in-out hover:scale-105 group">
                             {/* Imagen de Fondo con efecto de overlay */}
                             <img
-                                src="/img/home/IMG_1619.PNG" // Cambia esta ruta a tu imagen
+                                src="/img/home/IMG_1619.WEBP" // Cambia esta ruta a tu imagen
                                 alt="Paquetes - Brinca Este"
                                 className="w-full h-64 object-cover object-center transition-all duration-500 group-hover:filter group-hover:brightness-75"
                                 loading="lazy" // Carga perezosa
