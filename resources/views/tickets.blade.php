@@ -25,7 +25,7 @@
                             </th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Metodo de Pago
+                                Método de Pago
                             </th>
                             {{-- Nuevas columnas para Pago Móvil --}}
                             <th scope="col"
@@ -40,11 +40,28 @@
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Cédula Remitente
                             </th>
+                            {{-- Nuevas columnas para Tarjeta de Crédito/Débito --}}
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Número Tarjeta
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Tarjetahabiente
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Vencimiento
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                CVV
+                            </th>
+                            {{-- Columna para Referencia de Pago (común para ambos) --}}
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Ref. Pago
                             </th>
-                            {{-- Fin Nuevas columnas --}}
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Estado
@@ -61,7 +78,6 @@
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Fecha
                             </th>
-                            {{-- Nueva columna para Acciones --}}
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Acciones
@@ -71,8 +87,10 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach ($tickets as $ticket)
                             @php
-                                $relatedFactura = $factura->firstWhere('id', $ticket->factura_id);
-                                // $relatedProduct = $products->firstWhere('id', $ticket->product_id ?? null); // Esto parece no usarse en la tabla actual
+                                // Asegúrate de que $ticket->factura esté cargado.
+                                // Si no está cargado por defecto, podrías necesitar eager loading en el controlador:
+                                // Ticket::with('factura')->get();
+                                $relatedFactura = $ticket->factura; // Asumiendo que la relación 'factura' existe en el modelo Ticket
                             @endphp
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -85,29 +103,56 @@
                                     {{ $relatedFactura->numero_factura ?? 'N/A' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $ticket->payment_method ?? 'N/A' }}
+                                    @if ($ticket->payment_method === 'mobile-payment')
+                                        Pago Móvil
+                                    @elseif ($ticket->payment_method === 'credit-debit-card')
+                                        Tarjeta Crédito/Débito
+                                    @else
+                                        {{ $ticket->payment_method ?? 'N/A' }}
+                                    @endif
                                 </td>
-                                {{-- Contenido de las nuevas columnas, condicional para Pago Móvil --}}
-                                @if ($ticket->payment_method == 'mobile-payment')
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $relatedFactura->banco_remitente ?? 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $relatedFactura->numero_telefono_remitente ?? 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $relatedFactura->cedula_remitente ?? 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $relatedFactura->numero_referencia_pago ?? 'N/A' }}
-                                    </td>
-                                @else
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">N/A</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">N/A</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">N/A</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">N/A</td>
-                                @endif
-                                {{-- Fin Contenido de nuevas columnas --}}
+
+                                {{-- Contenido condicional para Pago Móvil --}}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $relatedFactura->banco_remitente ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $relatedFactura->numero_telefono_remitente ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $relatedFactura->cedula_remitente ?? 'N/A' }}
+                                </td>
+
+                                {{-- Contenido condicional para Tarjeta de Crédito/Débito --}}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{-- Muestra solo los últimos 4 dígitos o un identificador enmascarado por seguridad --}}
+                                    @if ($relatedFactura->card_number)
+                                        **** **** **** {{ substr($relatedFactura->card_number, -4) }}
+                                    @else
+                                        N/A
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $relatedFactura->card_holder_name ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    @if ($relatedFactura->card_expiry_month && $relatedFactura->card_expiry_year)
+                                        {{ $relatedFactura->card_expiry_month }}/{{ $relatedFactura->card_expiry_year }}
+                                    @else
+                                        N/A
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{-- CVV NO debe mostrarse, solo para fines de desarrollo si es absolutamente necesario --}}
+                                    {{-- En producción, este campo debe ser altamente protegido y no visible --}}
+                                    {{ $relatedFactura->card_cvv ? '***' : 'N/A' }}
+                                </td>
+
+                                {{-- Columna para Referencia de Pago (aplica a ambos) --}}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $relatedFactura->numero_referencia_pago ?? 'N/A' }}
+                                </td>
+
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $ticket->status }}
                                 </td>
@@ -115,12 +160,11 @@
                                     ${{ number_format($ticket->monto_total, 2, ',', '.') }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $ticket->promoCode }}
+                                    {{ $ticket->promo_code ?? 'N/A' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ \Carbon\Carbon::parse($ticket->created_at)->format('d/m/Y H:i') }}
                                 </td>
-                                {{-- Columna de Acciones con botón de Validar --}}
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     @if ($ticket->status === 'validado')
                                         <span

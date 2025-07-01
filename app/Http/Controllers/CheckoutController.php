@@ -60,11 +60,14 @@ class CheckoutController extends Controller
                 'ciudad' => 'required|string|max:100',
                 'codigo_postal' => 'nullable|string|max:10',
                 'promoCode' => 'nullable|string|max:50',
-                'paymentMethod' => 'required|string|in:in-store,mobile-payment',
+                // MODIFICACIÓN: Métodos de pago permitidos (eliminado 'in-store')
+                'paymentMethod' => 'required|string|in:credit-debit-card,mobile-payment',
                 'monto' => 'required|numeric|min:0', // Este es el monto que viene del frontend
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|integer|exists:products,id',
                 'items.*.quantity' => 'required|integer|min:1',
+                // No validamos 'items.*.price' directamente desde el request
+                // porque el precio lo calculamos y revalidamos en el backend.
             ];
 
             // --- Conditional Validation for Mobile Payment ---
@@ -73,7 +76,43 @@ class CheckoutController extends Controller
                     'banco_remitente' => 'required|string|max:255',
                     'numero_telefono_remitente' => 'required|string|max:20',
                     'cedula_remitente' => 'required|string|max:20',
+                    // MODIFICACIÓN: numero_referencia_pago es requerido y único para pago móvil
                     'numero_referencia_pago' => 'required|string|max:50|unique:tickets,numero_referencia_pago',
+                ]);
+            }
+
+            // --- Conditional Validation for Credit/Debit Card Payment ---
+            if ($request->input('paymentMethod') === 'credit-debit-card') {
+                // Obtener el año actual para la validación de la fecha de vencimiento
+                $currentYearLastTwoDigits = (int) date('y');
+                $currentMonth = (int) date('m');
+
+                $rules = array_merge($rules, [
+                    // MODIFICACIÓN: Validación para número de tarjeta (solo dígitos, 13-19 de longitud)
+                    'card_number' => 'required|string|regex:/^\d{13,19}$/',
+                    'card_holder_name' => 'required|string|max:255',
+                    'card_expiry_month' => 'required|integer|min:1|max:12',
+                    // MODIFICACIÓN: Validación para año de vencimiento
+                    'card_expiry_year' => [
+                        'required',
+                        'integer',
+                        'min:' . $currentYearLastTwoDigits, // Mínimo el año actual (últimos 2 dígitos)
+                        'max:' . ($currentYearLastTwoDigits + 10), // Máximo 10 años en el futuro
+                        // Regla personalizada para validar que la tarjeta no esté expirada
+                        function ($attribute, $value, $fail) use ($request, $currentYearLastTwoDigits, $currentMonth) {
+                            $expiryMonth = (int) $request->input('card_expiry_month');
+                            $expiryYear = (int) $value; // value es el año (últimos 2 dígitos)
+
+                            // Si el año de vencimiento es el año actual, el mes debe ser igual o mayor al mes actual
+                            if ($expiryYear === $currentYearLastTwoDigits && $expiryMonth < $currentMonth) {
+                                $fail('La fecha de vencimiento de la tarjeta no es válida o ya ha expirado.');
+                            }
+                        },
+                    ],
+                    // MODIFICACIÓN: Validación para CVV (3 o 4 dígitos)
+                    'card_cvv' => 'required|string|digits_between:3,4',
+                    // MODIFICACIÓN: numero_referencia_pago es opcional para tarjeta de crédito/débito
+                    'numero_referencia_pago' => 'nullable|string|max:50',
                 ]);
             }
 
@@ -85,27 +124,46 @@ class CheckoutController extends Controller
             $itemsForVenta = [];
 
             // --- Revalidar y Calcular Total en Backend ---
+            // Esto es CRÍTICO para la seguridad: siempre calcula el precio en el backend
+            // y no confíes en el precio enviado desde el frontend.
             foreach ($validatedData['items'] as $itemData) {
                 $product = Product::find($itemData['product_id']);
                 if (!$product) {
                     throw new Exception("Producto con ID {$itemData['product_id']} no encontrado.");
                 }
                 $quantity = $itemData['quantity'];
-                $itemPrice = $product->price;
+
+                // MODIFICACIÓN: Ajustar precio del brazalete según el día de la semana en el backend
+                $itemPrice = $product->price; // Precio base del producto
+                if ($product->category === "Brazalete" || $product->category === "Pass Baby Park") {
+                    $fecha = $request->input('fecha'); // Asumiendo que 'fecha' se envía en el request
+                    $dayOfWeek = (new \DateTime($fecha))->format('w'); // 0 (Dom) a 6 (Sab)
+
+                    // Lunes (1) a Viernes (5) = $5
+                    // Sábado (6) y Domingo (0) = $6
+                    if ($dayOfWeek >= 1 && $dayOfWeek <= 5) { // Lunes a Viernes
+                        $itemPrice = 5.0;
+                    } elseif ($dayOfWeek == 0 || $dayOfWeek == 6) { // Domingo o Sábado
+                        $itemPrice = 6.0;
+                    }
+                    // Si tienes otros días o lógicas de precio, ajústalas aquí
+                }
+
+
                 $itemSubtotal = $itemPrice * $quantity;
                 $totalCalculatedBackend += $itemSubtotal;
 
                 $itemsForTicket[] = [
                     'product_id' => $product->id,
                     'quantity' => $quantity,
-                    'price' => $itemPrice,
+                    'price' => $itemPrice, // Usar el precio ajustado por el backend
                     'subtotal' => $itemSubtotal,
                 ];
 
                 $itemsForVenta[] = [
                     'product_id' => $product->id,
                     'quantity' => $quantity,
-                    'price' => $itemPrice,
+                    'price' => $itemPrice, // Usar el precio ajustado por el backend
                     'subtotal' => $itemSubtotal,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -117,7 +175,13 @@ class CheckoutController extends Controller
             $finalAmount = $totalCalculatedBackend - $descuento;
 
             // Validación de seguridad para el monto final
+            // Permite una pequeña tolerancia para errores de coma flotante
             if (abs($validatedData['monto'] - $finalAmount) > 0.02) {
+                Log::error('Error de cálculo del monto final.', [
+                    'frontend_monto' => $validatedData['monto'],
+                    'backend_monto' => $finalAmount,
+                    'diff' => abs($validatedData['monto'] - $finalAmount)
+                ]);
                 throw new Exception("Error de cálculo del monto final. El monto enviado no coincide con el calculado en el servidor.");
             }
 
@@ -136,10 +200,19 @@ class CheckoutController extends Controller
                 'promo_code' => $validatedData['promoCode'] ?? null,
                 'monto_total' => $finalAmount,
                 'payment_method' => $validatedData['paymentMethod'],
-                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_cash',
+                // MODIFICACIÓN: Estado inicial basado en el método de pago
+                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_card', // Asumiendo 'credit-debit-card'
+                // Campos de Pago Móvil (se guardan si existen en validatedData, si no, null)
                 'banco_remitente' => $validatedData['banco_remitente'] ?? null,
                 'numero_telefono_remitente' => $validatedData['numero_telefono_remitente'] ?? null,
                 'cedula_remitente' => $validatedData['cedula_remitente'] ?? null,
+                // Campos de Tarjeta de Crédito/Débito (se guardan si existen en validatedData, si no, null)
+                'card_number' => $validatedData['card_number'] ?? null,
+                'card_holder_name' => $validatedData['card_holder_name'] ?? null,
+                'card_expiry_month' => $validatedData['card_expiry_month'] ?? null,
+                'card_expiry_year' => $validatedData['card_expiry_year'] ?? null,
+                'card_cvv' => $validatedData['card_cvv'] ?? null,
+                // numero_referencia_pago (se guarda si existe en validatedData, si no, null)
                 'numero_referencia_pago' => $validatedData['numero_referencia_pago'] ?? null,
             ]);
 
@@ -163,7 +236,8 @@ class CheckoutController extends Controller
                 'numero_factura' => $numeroFactura,
                 'monto_total' => $finalAmount,
                 'fecha_emision' => now(),
-                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_cash',
+                // MODIFICACIÓN: Estado inicial de la factura basado en el método de pago
+                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_card', // Asumiendo 'credit-debit-card'
                 // --- CAMBIO DEFENSIVO: Usar ?? null aquí ---
                 'nombre_completo' => $validatedData['nombre_completo'] ?? null,
                 'correo' => $validatedData['correo'] ?? null,
@@ -171,10 +245,18 @@ class CheckoutController extends Controller
                 'direccion' => $validatedData['direccion'] ?? null,
                 'ciudad' => $validatedData['ciudad'] ?? null,
                 'codigo_postal' => $validatedData['codigo_postal'] ?? null,
-                'banco_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['banco_remitente'] ?? null) : null,
-                'numero_telefono_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['numero_telefono_remitente'] ?? null) : null,
-                'cedula_remitente' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['cedula_remitente'] ?? null) : null,
-                'numero_referencia_pago' => $validatedData['paymentMethod'] === 'mobile-payment' ? ($validatedData['numero_referencia_pago'] ?? null) : null,
+                // Campos de Pago Móvil (se guardan si existen en validatedData, si no, null)
+                'banco_remitente' => $validatedData['banco_remitente'] ?? null,
+                'numero_telefono_remitente' => $validatedData['numero_telefono_remitente'] ?? null,
+                'cedula_remitente' => $validatedData['cedula_remitente'] ?? null,
+                // Campos de Tarjeta de Crédito/Débito (se guardan si existen en validatedData, si no, null)
+                'card_number' => $validatedData['card_number'] ?? null,
+                'card_holder_name' => $validatedData['card_holder_name'] ?? null,
+                'card_expiry_month' => $validatedData['card_expiry_month'] ?? null,
+                'card_expiry_year' => $validatedData['card_expiry_year'] ?? null,
+                'card_cvv' => $validatedData['card_cvv'] ?? null,
+                // numero_referencia_pago (se guarda si existe en validatedData, si no, null)
+                'numero_referencia_pago' => $validatedData['numero_referencia_pago'] ?? null,
             ]);
 
             // Si tu tabla `tickets` tiene `factura_id`, asegúrate de actualizarlo:
@@ -223,12 +305,10 @@ class CheckoutController extends Controller
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
             // El rollback solo se intenta si la transacción ya había comenzado.
-            //dd($e);
             if (DB::transactionLevel() > 0) {
                 DB::rollBack();
             }
             Log::error('Error en el proceso de checkout: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            // dd($e->getMessage()); // Descomentar para ver el error exacto si persiste
             return redirect()->back()->withErrors(['checkout' => 'Hubo un problema inesperado al procesar su pedido. Por favor, inténtelo de nuevo más tarde.'])->withInput();
         }
     }

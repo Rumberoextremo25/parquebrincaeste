@@ -10,8 +10,8 @@ class ProductsSeeder extends Seeder
     public function run()
     {
         // Precios definidos para brazaletes
-        $precio_brazalete_semana = 5.00; // Martes a Jueves
-        $precio_brazalete_fin_semana = 6.00; // Viernes a Domingo
+        $precio_brazalete_semana = 5.00; // Martes a Viernes
+        $precio_brazalete_fin_semana = 6.00; // Sabado a Domingo
         $precio_calcetines = 1.50; // ¡Costo actualizado para las medias!
 
         $products = [];
@@ -19,18 +19,18 @@ class ProductsSeeder extends Seeder
         // Generar brazaletes por hora para Días de Semana (Martes a Jueves)
         $products = array_merge($products, $this->generateBrazaletesByHour(
             $precio_brazalete_semana,
-            ' (Martes a Jueves)' // Sufijo para diferenciar
+            ' (Martes a Viernes)' // Sufijo para diferenciar
         ));
 
         // Generar brazaletes por hora para Fines de Semana (Viernes a Domingo)
         $products = array_merge($products, $this->generateBrazaletesByHour(
             $precio_brazalete_fin_semana,
-            ' (Viernes a Domingo)' // Sufijo para diferenciar
+            ' (Sabado a Domingo)' // Sufijo para diferenciar
         ));
 
         // Brazalete "Baby Park" para Días de Semana
         $products[] = $this->createProductData(
-            'Brazalete Baby Park (Martes a Jueves)',
+            'Brazalete Baby Park (Martes a Viernes)',
             'Todas las Horas',
             $precio_brazalete_semana,
             'Pass Baby Park',
@@ -39,7 +39,7 @@ class ProductsSeeder extends Seeder
 
         // Brazalete "Baby Park" para Fines de Semana
         $products[] = $this->createProductData(
-            'Brazalete Baby Park (Viernes a Domingo)',
+            'Brazalete Baby Park (Sabado a Domingo)',
             'Todas las Horas',
             $precio_brazalete_fin_semana,
             'Pass Baby Park',

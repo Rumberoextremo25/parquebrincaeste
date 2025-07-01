@@ -135,14 +135,6 @@ class TicketController extends Controller
         // Llamar al método genérico de generación de PDF con la instancia de Factura encontrada
         return $this->generatePdfResponse($factura);
     }
-
-    /**
-     * Método privado para generar el PDF de la factura.
-     * Encapsula toda la lógica de TCPDF.
-     *
-     * @param Factura $factura La instancia de la Factura para la cual generar el PDF.
-     * @return \Illuminate\Http\Response
-     */
     private function generatePdfResponse(Factura $factura)
     {
         // Instancia de TCPDF
@@ -156,7 +148,6 @@ class TicketController extends Controller
         $pdf->SetKeywords('Factura, Comprobante, Compra, Brinca Este');
 
         // Configuración de encabezado y pie de página
-        // Puedes personalizar PDF_HEADER_LOGO y PDF_HEADER_LOGO_WIDTH en config/tcpdf.php o definirlos aquí
         $pdf->SetHeaderData(PDF_HEADER_LOGO, PDF_HEADER_LOGO_WIDTH, 'Comprobante de Compra', 'Brinca Este 24 C.A.');
         $pdf->setHeaderFont(array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
         $pdf->setFooterFont(array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
@@ -164,7 +155,7 @@ class TicketController extends Controller
         // Márgenes
         $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
         $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
-        $pdf->setFooterMargin(PDF_MARGIN_FOOTER);
+        $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
 
         // Salto de página automático
         $pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
@@ -182,47 +173,81 @@ class TicketController extends Controller
         $pdf->AddPage();
 
         // Obtener detalles adicionales para la factura (ticket y sus items)
-        // loadMissing asegura que las relaciones se carguen solo si no lo están ya
+        // MODIFICACIÓN: Asegúrate de cargar las relaciones del ticket necesarias para los detalles de pago
         $factura->loadMissing(['ticket.ticketItems.product']);
 
         $ticket = $factura->ticket; // Acceder al ticket asociado
-        // Acceder a los ítems del ticket a través de la relación ya cargada
         $ticketItems = $ticket ? $ticket->ticketItems : collect();
+
+        // Determinar el método de pago para mostrarlo en el PDF
+        $paymentMethod = $factura->payment_method ?? ($ticket ? $ticket->payment_method : 'N/A');
+        $paymentMethodDisplay = 'N/A';
+        $paymentDetailsHtml = ''; // Variable para almacenar el HTML de los detalles de pago
+
+        if ($paymentMethod === 'mobile-payment') {
+            $paymentMethodDisplay = 'Pago Móvil';
+            $paymentDetailsHtml = '
+                <h2 style="color: #555;">Detalles de Pago (Pago Móvil):</h2>
+                <p><strong>Banco Remitente:</strong> ' . ($factura->banco_remitente ?? 'N/A') . '</p>
+                <p><strong>Teléfono Remitente:</strong> ' . ($factura->numero_telefono_remitente ?? 'N/A') . '</p>
+                <p><strong>Cédula Remitente:</strong> ' . ($factura->cedula_remitente ?? 'N/A') . '</p>
+                <p><strong>Número de Referencia:</strong> ' . ($factura->numero_referencia_pago ?? 'N/A') . '</p>
+                <br>
+            ';
+        } elseif ($paymentMethod === 'credit-debit-card') {
+            $paymentMethodDisplay = 'Tarjeta de Crédito/Débito';
+            $paymentDetailsHtml = '
+                <h2 style="color: #555;">Detalles de Pago (Tarjeta):</h2>
+                <p><strong>Número de Tarjeta:</strong> ' . ($factura->card_number ? '**** **** **** ' . substr($factura->card_number, -4) : 'N/A') . '</p>
+                <p><strong>Nombre del Titular:</strong> ' . ($factura->card_holder_name ?? 'N/A') . '</p>
+                <p><strong>Fecha de Vencimiento:</strong> ' . (($factura->card_expiry_month && $factura->card_expiry_year) ? $factura->card_expiry_month . '/' . $factura->card_expiry_year : 'N/A') . '</p>
+                <p><strong>Número de Referencia:</strong> ' . ($factura->numero_referencia_pago ?? 'N/A') . '</p>
+                <br>
+            ';
+        } else {
+            // Para otros métodos como 'cash' o 'bank_transfer' si los tienes
+            $paymentMethodDisplay = ucfirst(str_replace('_', ' ', $paymentMethod));
+            $paymentDetailsHtml = '<p><strong>Método de Pago:</strong> ' . $paymentMethodDisplay . '</p><br>';
+        }
 
         // Construcción del contenido HTML para el PDF
         $html = '
-        <h1 style="text-align: center; color: #333;">COMPROBANTE DE COMPRA</h1>
-        <hr style="border-top: 1px solid #ccc; margin: 15px 0;">
-        <table cellspacing="0" cellpadding="2" style="width: 100%;">
-            <tr>
-                <td style="width: 50%;"><strong>Número de Factura:</strong> ' . ($factura->numero_factura ?? 'N/A') . '</td>
-                <td style="width: 50%;"><strong>Fecha de Emisión:</strong> ' . (Carbon::parse($factura->fecha_emision)->format('d/m/Y H:i:s') ?? 'N/A') . '</td>
-            </tr>
-            <tr>
-                <td><strong>Número de Orden:</strong> ' . ($ticket ? $ticket->order_number : 'N/A') . '</td>
-                <td><strong>Monto Total:</strong> $' . number_format($factura->monto_total, 2, ',', '.') . '</td>
-            </tr>
-        </table>
-        <br>
-        <h2 style="color: #555;">Detalles del Cliente:</h2>
-        <p><strong>Nombre:</strong> ' . ($factura->nombre_completo ?? 'N/A') . '</p>
-        <p><strong>Correo:</strong> ' . ($factura->correo ?? 'N/A') . '</p>
-        <p><strong>Teléfono:</strong> ' . ($factura->telefono ?? 'N/A') . '</p>
-        <p><strong>Dirección:</strong> ' . ($factura->direccion ?? 'N/A') . ', ' . ($factura->ciudad ?? 'N/A') . '</p>
-        <p><strong>Código Postal:</strong> ' . ($factura->codigo_postal ?? 'N/A') . '</p>
-        <br>
-        <h2 style="color: #555;">Detalle de Productos:</h2>
-        <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="background-color: #f2f2f2;">
-                    <th style="width: 10%; text-align: center; border: 1px solid #ddd;">ID</th>
-                    <th style="width: 40%; text-align: left; border: 1px solid #ddd;">Producto</th>
-                    <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Cantidad</th>
-                    <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Precio Unitario</th>
-                    <th style="width: 20%; text-align: right; border: 1px solid #ddd;">Subtotal</th>
+            <h1 style="text-align: center; color: #333;">COMPROBANTE DE COMPRA</h1>
+            <hr style="border-top: 1px solid #ccc; margin: 15px 0;">
+            <table cellspacing="0" cellpadding="2" style="width: 100%;">
+                <tr>
+                    <td style="width: 50%;"><strong>Número de Factura:</strong> ' . ($factura->numero_factura ?? 'N/A') . '</td>
+                    <td style="width: 50%;"><strong>Fecha de Emisión:</strong> ' . (Carbon::parse($factura->fecha_emision)->format('d/m/Y H:i:s') ?? 'N/A') . '</td>
                 </tr>
-            </thead>
-            <tbody>';
+                <tr>
+                    <td><strong>Número de Orden:</strong> ' . ($ticket ? $ticket->order_number : 'N/A') . '</td>
+                    <td><strong>Monto Total:</strong> $' . number_format($factura->monto_total, 2, ',', '.') . '</td>
+                </tr>
+                <tr>
+                    <td colspan="2"><strong>Método de Pago:</strong> ' . $paymentMethodDisplay . '</td>
+                </tr>
+            </table>
+            <br>'
+            . $paymentDetailsHtml . // Agregamos los detalles específicos del pago aquí
+            '<h2 style="color: #555;">Detalles del Cliente:</h2>
+            <p><strong>Nombre:</strong> ' . ($factura->nombre_completo ?? 'N/A') . '</p>
+            <p><strong>Correo:</strong> ' . ($factura->correo ?? 'N/A') . '</p>
+            <p><strong>Teléfono:</strong> ' . ($factura->telefono ?? 'N/A') . '</p>
+            <p><strong>Dirección:</strong> ' . ($factura->direccion ?? 'N/A') . ', ' . ($factura->ciudad ?? 'N/A') . '</p>
+            <p><strong>Código Postal:</strong> ' . ($factura->codigo_postal ?? 'N/A') . '</p>
+            <br>
+            <h2 style="color: #555;">Detalle de Productos:</h2>
+            <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="width: 10%; text-align: center; border: 1px solid #ddd;">ID</th>
+                        <th style="width: 40%; text-align: left; border: 1px solid #ddd;">Producto</th>
+                        <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Cantidad</th>
+                        <th style="width: 15%; text-align: right; border: 1px solid #ddd;">Precio Unitario</th>
+                        <th style="width: 20%; text-align: right; border: 1px solid #ddd;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>';
 
         if ($ticketItems->isNotEmpty()) {
             foreach ($ticketItems as $item) {
@@ -239,14 +264,13 @@ class TicketController extends Controller
             $html .= '<tr><td colspan="5" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>';
         }
 
-
         $html .= '
-            </tbody>
-        </table>
-        <br>
-        <p style="text-align: right; font-weight: bold; font-size: 1.2em; color: #333;">TOTAL A PAGAR: $' . number_format($factura->monto_total, 2, ',', '.') . '</p>
-        <br><br>
-        <p style="text-align: center; font-size: 0.9em; color: #666;">Gracias por tu compra en Brinca Este 24 C.A.</p>
+                </tbody>
+            </table>
+            <br>
+            <p style="text-align: right; font-weight: bold; font-size: 1.2em; color: #333;">TOTAL A PAGAR: $' . number_format($factura->monto_total, 2, ',', '.') . '</p>
+            <br><br>
+            <p style="text-align: center; font-size: 0.9em; color: #666;">Gracias por tu compra en Brinca Este 24 C.A.</p>
         ';
 
         // Escribir el HTML en el PDF
@@ -256,7 +280,6 @@ class TicketController extends Controller
         $fileName = 'comprobante_compra_' . ($factura->numero_factura ?? $factura->id) . '.pdf';
 
         // Salida del PDF: 'I' para mostrar en el navegador, 'D' para forzar la descarga.
-        // Usamos 'I' para "Inline", lo que lo muestra en el navegador por defecto.
         return $pdf->Output($fileName, 'I');
     }
 

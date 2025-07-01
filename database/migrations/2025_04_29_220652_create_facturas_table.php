@@ -35,6 +35,13 @@ return new class extends Migration
             $table->string('cedula_remitente')->nullable();
             $table->string('numero_referencia_pago')->nullable();
 
+            // MODIFICACIÓN: Nuevos campos para tarjeta de crédito/débito
+            $table->string('card_number')->nullable(); // Número de tarjeta (puede ser enmascarado o tokenizado)
+            $table->string('card_holder_name')->nullable(); // Nombre del tarjetahabiente
+            $table->string('card_expiry_month', 2)->nullable(); // Mes de vencimiento (ej: '01' a '12')
+            $table->string('card_expiry_year', 2)->nullable(); // Año de vencimiento (ej: '25' para 2025)
+            $table->string('card_cvv', 4)->nullable(); // CVV/CVC (3 o 4 dígitos)
+
             $table->timestamps();
         });
     }

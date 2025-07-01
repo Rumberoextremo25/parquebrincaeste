@@ -304,7 +304,8 @@ class DashboardController extends Controller
         $pdf->AddPage();
 
         // 2. Obtener los datos de las ventas con sus productos relacionados
-        $query = Venta::with('product');
+        // MODIFICACIÓN: Eager load the 'ticket' relationship
+        $query = Venta::with('product', 'ticket'); // Carga la relación con el ticket
 
         // ¡APLICAR LOS FILTROS DE FECHA AQUÍ!
         if ($fromDate && $toDate) {
@@ -339,37 +340,54 @@ class DashboardController extends Controller
         }
         $html .= '<br>'; // Espacio
 
-        // ... (el resto de tu HTML para la tabla, totales, etc. permanece igual) ...
         // 3. Encabezados de la tabla
         $html .= '<table border="1" cellpadding="4" cellspacing="0">'; // Añadido cellspacing para mejor visualización
         $html .= '<thead><tr>';
-        $html .= '<th style="width: 10%;">ID Venta</th>';
-        $html .= '<th style="width: 25%;">Nombre Producto</th>';
-        $html .= '<th style="width: 10%;">Cant.</th>';
-        $html .= '<th style="width: 15%;">Precio Unit. (USD)</th>';
-        $html .= '<th style="width: 15%;">Subtotal (USD)</th>';
-        $html .= '<th style="width: 15%;">Subtotal (Bs)</th>'; // Nueva columna para subtotal en Bs
-        $html .= '<th style="width: 10%;">Fecha Venta</th>';
+        $html .= '<th style="width: 8%;">ID Venta</th>';
+        $html .= '<th style="width: 20%;">Nombre Producto</th>';
+        $html .= '<th style="width: 8%;">Cant.</th>';
+        $html .= '<th style="width: 12%;">Precio Unit. (USD)</th>';
+        $html .= '<th style="width: 12%;">Subtotal (USD)</th>';
+        $html .= '<th style="width: 12%;">Subtotal (Bs)</th>'; // Nueva columna para subtotal en Bs
+        // MODIFICACIÓN: Nueva columna para el método de pago
+        $html .= '<th style="width: 15%;">Método Pago</th>';
+        $html .= '<th style="width: 13%;">Fecha Venta</th>';
         $html .= '</tr></thead><tbody>';
 
         // 4. Filas con datos y cálculo de totales por categoría
         foreach ($ventas as $venta) {
             $nombreProducto = $venta->product ? $venta->product->name : 'N/A';
             $productCategory = $venta->product ? $venta->product->category : null;
+            // MODIFICACIÓN: Obtener el método de pago del ticket relacionado
+            $paymentMethod = $venta->ticket ? $venta->ticket->payment_method : 'N/A';
+
+            // Formatear el método de pago para mejor lectura
+            switch ($paymentMethod) {
+                case 'mobile-payment':
+                    $paymentMethodDisplay = 'Pago Móvil';
+                    break;
+                case 'credit-debit-card':
+                    $paymentMethodDisplay = 'T. Crédito/Débito';
+                    break;
+                default:
+                    $paymentMethodDisplay = ucfirst(str_replace('-', ' ', $paymentMethod)); // Capitalizar y reemplazar guiones
+                    break;
+            }
 
             $precioUnitarioUSD = $venta->price;
             $subtotalLineaUSD = $venta->subtotal;
-
             $subtotalLineaBs = $subtotalLineaUSD * $bcvRate;
 
             $html .= '<tr>';
-            $html .= '<td style="width: 10%;">#' . $venta->id . '</td>';
-            $html .= '<td style="width: 25%;">' . htmlspecialchars($nombreProducto) . '</td>';
-            $html .= '<td style="width: 10%; text-align: center;">' . $venta->quantity . '</td>';
-            $html .= '<td style="width: 15%; text-align: right;">$' . number_format($precioUnitarioUSD, 2, ',', '.') . '</td>';
-            $html .= '<td style="width: 15%; text-align: right;">$' . number_format($subtotalLineaUSD, 2, ',', '.') . '</td>';
-            $html .= '<td style="width: 15%; text-align: right;">' . number_format($subtotalLineaBs, 2, ',', '.') . ' Bs</td>';
-            $html .= '<td style="width: 10%; text-align: center;">' . ($venta->fecha ? Carbon::parse($venta->fecha)->format('d/m/Y') : Carbon::parse($venta->created_at)->format('d/m/Y')) . '</td>';
+            $html .= '<td style="width: 8%;">#' . $venta->id . '</td>';
+            $html .= '<td style="width: 20%;">' . htmlspecialchars($nombreProducto) . '</td>';
+            $html .= '<td style="width: 8%; text-align: center;">' . $venta->quantity . '</td>';
+            $html .= '<td style="width: 12%; text-align: right;">$' . number_format($precioUnitarioUSD, 2, ',', '.') . '</td>';
+            $html .= '<td style="width: 12%; text-align: right;">$' . number_format($subtotalLineaUSD, 2, ',', '.') . '</td>';
+            $html .= '<td style="width: 12%; text-align: right;">' . number_format($subtotalLineaBs, 2, ',', '.') . ' Bs</td>';
+            // MODIFICACIÓN: Mostrar el método de pago
+            $html .= '<td style="width: 15%; text-align: center;">' . $paymentMethodDisplay . '</td>';
+            $html .= '<td style="width: 13%; text-align: center;">' . ($venta->fecha ? Carbon::parse($venta->fecha)->format('d/m/Y') : Carbon::parse($venta->created_at)->format('d/m/Y')) . '</td>';
             $html .= '</tr>';
 
             $totalVendidoUSD += $subtotalLineaUSD;
@@ -395,7 +413,6 @@ class DashboardController extends Controller
         $html .= '<tr><td><strong>Cantidad de Medias Vendidas:</strong></td><td style="text-align: right;">' . $cantidadCalcetines . ' unidades</td></tr>';
         $html .= '<tr><td><strong>Cantidad de Brazaletes Vendidos:</strong></td><td style="text-align: right;">' . $cantidadBrazaletes . ' unidades</td></tr>';
         $html .= '</table>';
-
 
         // 6. Escribir el HTML al PDF y generar la salida
         $pdf->writeHTML($html, true, false, true, false, '');

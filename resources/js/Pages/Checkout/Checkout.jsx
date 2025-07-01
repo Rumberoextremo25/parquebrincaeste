@@ -1,11 +1,11 @@
-import React, { useState, useEffect, Fragment } from 'react'; // Eliminado useCallback
+import React, { useState, useEffect, Fragment } from 'react';
 import Layout from '@/Layouts/Layout';
 import BannerHero from '@/Components/Hero/BannerHero';
 import Modal from '@/Components/Modal';
 import { router } from '@inertiajs/react';
 
 // --- Componente InputField envuelto en React.memo (ideal para optimización) ---
-const InputField = React.memo(({ type, name, label, value, onChange, required, readOnly, placeholder, error }) => {
+const InputField = React.memo(({ type, name, label, value, onChange, required, readOnly, placeholder, error, maxLength, pattern, inputMode, autoComplete }) => {
     return (
         <div className="mb-4">
             <label htmlFor={name} className="block text-gray-700 text-sm font-bold mb-2">{label}</label>
@@ -18,6 +18,10 @@ const InputField = React.memo(({ type, name, label, value, onChange, required, r
                 onChange={onChange}
                 readOnly={readOnly}
                 placeholder={placeholder}
+                maxLength={maxLength}
+                pattern={pattern}
+                inputMode={inputMode}
+                autoComplete={autoComplete}
                 className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${error ? 'border-red-500' : ''}`}
             />
             {error && <p className="text-red-500 text-xs italic mt-1">{error}</p>}
@@ -37,9 +41,16 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
         codigo_postal: user?.postal_code || '',
         promoCode: '',
         paymentMethod: '',
+        // Campos específicos para pago móvil
         banco_remitente: '',
         numero_telefono_remitente: '',
         cedula_remitente: '',
+        // Campos específicos para tarjeta de crédito/débito
+        card_number: '',
+        card_holder_name: '',
+        card_expiry: '', // Unificado: MM/YY o MM/YYYY
+        card_cvv: '',
+        // Campo de referencia de pago (para comprobante físico, si aplica, o para pago móvil)
         numero_referencia_pago: '',
         monto: 0
     });
@@ -47,14 +58,14 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
     const [errorMessage, setErrorMessage] = useState('');
     const [totalUSD, setTotalUSD] = useState(0);
 
-    // *** Usamos la tasa BCV inicial que viene del backend, sin intentar buscarla aquí ***
     const [currentBcvRate, setCurrentBcvRate] = useState(initialBcvRate);
-    // *** Eliminamos isFetchingRate ya que no haremos fetch en el frontend ***
-
     const [totalBs, setTotalBs] = useState(0);
     const [showMobilePaymentInfoModal, setShowMobilePaymentInfoModal] = useState(false);
-    const [showMobilePaymentForm, setShowMobilePaymentForm] = useState(false);
+    const [showPaymentDetailsForm, setShowPaymentDetailsForm] = useState(false);
 
+    const [cardType, setCardType] = useState(''); // Estado para almacenar el tipo de tarjeta
+
+    // Detalles del comercio para pago móvil
     const merchantMobilePaymentDetails = {
         banco: 'Bancaribe C.A.',
         cedula: 'J-505728440',
@@ -62,21 +73,37 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
         telefono: '(0412) 350 88 26'
     };
 
-    // *** FUNCIÓN fetchLatestBcvRate Y SU LÓGICA ASOCIADA HAN SIDO ELIMINADAS ***
+    // Función para detectar el tipo de tarjeta
+    const detectCardType = (cardNumber) => {
+        if (!cardNumber) return '';
+        cardNumber = cardNumber.replace(/\s/g, ''); // Eliminar espacios
 
-    // *** EFECTO PARA CALCULAR TOTALES CUANDO CAMBIAN LOS ITEMS O LA TASA ***
+        // Patrones regex para tipos de tarjeta
+        const visaPattern = /^4/;
+        const mastercardPattern = /^5[1-5]/;
+        const maestroPattern = /^(50|56|57|58|6[0-9])/; // Maestro tiene un rango más amplio
+
+        if (visaPattern.test(cardNumber)) {
+            return 'Visa';
+        } else if (mastercardPattern.test(cardNumber)) {
+            return 'Mastercard';
+        } else if (maestroPattern.test(cardNumber)) {
+            return 'Maestro';
+        }
+        return '';
+    };
+
     useEffect(() => {
         const calculatedTotalUSD = localCartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
         setTotalUSD(calculatedTotalUSD);
         setFormData((prevData) => ({ ...prevData, monto: calculatedTotalUSD }));
 
-        // Calcula el total en Bolívares usando la tasa actual (que viene de las props)
         if (currentBcvRate > 0) {
             setTotalBs(calculatedTotalUSD * currentBcvRate);
         } else {
-            setTotalBs(0); // O manejar como un error si la tasa es 0
+            setTotalBs(0);
         }
-    }, [localCartItems, currentBcvRate]); // Se ejecuta cuando cartItems o currentBcvRate cambian
+    }, [localCartItems, currentBcvRate]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -84,21 +111,44 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
             const newState = { ...prevData, [name]: value };
 
             if (name === 'paymentMethod') {
-                if (value === 'mobile-payment') {
-                    // *** CUANDO SE SELECCIONA PAGO MÓVIL, YA NO BUSCAMOS LA TASA AQUÍ.
-                    // *** currentBcvRate ya tiene el valor inicial que llegó del backend.
+                if (value === 'credit-debit-card') {
+                    setShowPaymentDetailsForm(true);
+                    setShowMobilePaymentInfoModal(false);
+                } else if (value === 'mobile-payment') {
                     setShowMobilePaymentInfoModal(true);
-                    setShowMobilePaymentForm(true);
+                    setShowPaymentDetailsForm(true);
                 } else {
-                    // Limpia los campos específicos de pago móvil si se cambia el método
+                    // Limpia todos los campos de pago si se cambia el método a algo que no los requiera
                     newState.banco_remitente = '';
                     newState.numero_telefono_remitente = '';
                     newState.cedula_remitente = '';
                     newState.numero_referencia_pago = '';
+                    newState.card_number = '';
+                    newState.card_holder_name = '';
+                    newState.card_expiry = ''; // Limpiar el campo unificado
+                    newState.card_cvv = '';
+                    setCardType(''); // Limpia el tipo de tarjeta
                     setShowMobilePaymentInfoModal(false);
-                    setShowMobilePaymentForm(false);
+                    setShowPaymentDetailsForm(false);
                 }
+            } else if (name === 'card_number') {
+                // Formatear número de tarjeta para espacios cada 4 dígitos
+                const formattedValue = value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim();
+                newState[name] = formattedValue;
+                setCardType(detectCardType(formattedValue)); // Detecta el tipo de tarjeta
+            } else if (name === 'card_expiry') {
+                // Formatear la fecha de vencimiento a MM/YY o MM/YYYY
+                let formattedExpiry = value.replace(/\D/g, ''); // Eliminar todo lo que no sea dígito
+                if (formattedExpiry.length > 2) {
+                    formattedExpiry = formattedExpiry.substring(0, 2) + '/' + formattedExpiry.substring(2, 6);
+                }
+                newState[name] = formattedExpiry.substring(0, 7); // Limitar a MM/YYYY (7 caracteres)
+            } else if (name === 'card_cvv') {
+                // Permitir solo números y limitar longitud para CVV
+                const numericValue = value.replace(/\D/g, ''); // Elimina todo lo que no sea dígito
+                newState[name] = numericValue.substring(0, 4); // CVV es 3 o 4 dígitos
             }
+
             return newState;
         });
     };
@@ -114,11 +164,72 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
             return;
         }
 
+        // Validación específica para Tarjeta de Crédito/Débito
+        if (formData.paymentMethod === 'credit-debit-card') {
+            if (!formData.card_number.replace(/\s/g, '').match(/^\d{13,19}$/)) { // 13-19 dígitos sin espacios
+                setErrorMessage('Por favor, ingresa un número de tarjeta válido (13 a 19 dígitos).');
+                setLoading(false);
+                return;
+            }
+            if (!formData.card_holder_name.trim()) {
+                setErrorMessage('Por favor, ingresa el nombre del tarjetahabiente.');
+                setLoading(false);
+                return;
+            }
+
+            // Validación del campo unificado card_expiry
+            const expiryParts = formData.card_expiry.split('/');
+            if (expiryParts.length !== 2) {
+                setErrorMessage('El formato de la fecha de vencimiento debe ser MM/AA o MM/AAAA.');
+                setLoading(false);
+                return;
+            }
+
+            const expiryMonth = parseInt(expiryParts[0], 10);
+            let expiryYear = parseInt(expiryParts[1], 10);
+
+            // Ajustar el año a formato de 4 dígitos si se ingresó en 2 dígitos
+            if (expiryYear < 100) {
+                const currentYearPrefix = Math.floor(new Date().getFullYear() / 100); // Ej: 20
+                expiryYear = currentYearPrefix * 100 + expiryYear;
+            }
+
+            const currentYearFull = new Date().getFullYear();
+            const currentMonth = new Date().getMonth() + 1; // Mes actual (1-12)
+
+            if (!expiryMonth || expiryMonth < 1 || expiryMonth > 12) {
+                setErrorMessage('El mes de vencimiento de la tarjeta no es válido.');
+                setLoading(false);
+                return;
+            }
+            if (!expiryYear || expiryYear < currentYearFull || (expiryYear === currentYearFull && expiryMonth < currentMonth)) {
+                setErrorMessage('La fecha de vencimiento de la tarjeta no es válida o ya ha expirado.');
+                setLoading(false);
+                return;
+            }
+
+            if (!formData.card_cvv.match(/^\d{3,4}$/)) { // 3 o 4 dígitos para CVV
+                setErrorMessage('Por favor, ingresa un CVV válido (3 o 4 dígitos).');
+                setLoading(false);
+                return;
+            }
+            // La referencia de pago para tarjeta es opcional, ya que la validación principal es la tarjeta.
+        }
+
+        // Validación para Pago Móvil (solo el número de referencia)
+        if (formData.paymentMethod === 'mobile-payment') {
+            if (!formData.numero_referencia_pago.trim()) {
+                setErrorMessage('Por favor, ingresa el número de referencia del pago móvil.');
+                setLoading(false);
+                return;
+            }
+        }
+
         let dataToSend = {
             ...formData,
-            monto: totalUSD, // Siempre enviamos el monto en USD al backend
-            monto_bs: totalBs.toFixed(2), // Agregamos el monto en Bs para referencia o validación
-            bcv_rate_used: currentBcvRate, // Enviamos la tasa que el frontend está usando (la que vino del backend)
+            monto: totalUSD,
+            monto_bs: totalBs.toFixed(2),
+            bcv_rate_used: currentBcvRate,
             items: localCartItems.map(item => ({
                 product_id: item.id,
                 quantity: item.quantity,
@@ -126,22 +237,38 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
             }))
         };
 
-        // Asegúrate de limpiar los datos de pago móvil si no es el método seleccionado
+        // Separar mes y año para enviar al backend si se unificó en el frontend
+        if (dataToSend.paymentMethod === 'credit-debit-card' && dataToSend.card_expiry) {
+            const [month, year] = dataToSend.card_expiry.split('/');
+            dataToSend.card_expiry_month = month;
+            dataToSend.card_expiry_year = year.length === 2 ? `20${year}` : year; // Asegurar año de 4 dígitos para backend
+        } else {
+            dataToSend.card_expiry_month = null;
+            dataToSend.card_expiry_year = null;
+        }
+        delete dataToSend.card_expiry; // Eliminar el campo unificado para el envío
+
+        // Limpiar datos no relevantes según el método de pago seleccionado
         if (dataToSend.paymentMethod !== 'mobile-payment') {
-            dataToSend = {
-                ...dataToSend,
-                banco_remitente: null,
-                numero_telefono_remitente: null,
-                cedula_remitente: null,
-                numero_referencia_pago: null,
-            };
+            dataToSend.banco_remitente = null;
+            dataToSend.numero_telefono_remitente = null;
+            dataToSend.cedula_remitente = null;
+        }
+        if (dataToSend.paymentMethod !== 'credit-debit-card') {
+            dataToSend.card_number = null;
+            dataToSend.card_holder_name = null;
+            dataToSend.card_cvv = null;
+        }
+        // Si el pago no es ni móvil ni tarjeta, limpiar la referencia también
+        if (dataToSend.paymentMethod !== 'mobile-payment' && dataToSend.paymentMethod !== 'credit-debit-card') {
+            dataToSend.numero_referencia_pago = null;
         }
 
         router.post('/checkout', dataToSend, {
             onStart: () => setLoading(true),
             onFinish: () => setLoading(false),
             onSuccess: () => {
-                setLocalCartItems([]); // Vaciar carrito si la compra es exitosa
+                setLocalCartItems([]);
                 // Opcional: Redirigir a una página de confirmación
             },
             onError: (inertiaErrors) => {
@@ -253,19 +380,19 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                     className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${errors.paymentMethod ? 'border-red-500' : ''}`}
                                 >
                                     <option value="">Seleccione...</option>
+                                    <option value="credit-debit-card">Tarjeta de Crédito o Débito</option>
                                     <option value="mobile-payment">Pago Móvil</option>
-                                    <option value="in-store">Pago en Caja</option>
                                 </select>
                                 {errors.paymentMethod && <p className="text-red-500 text-xs italic mt-1">{errors.paymentMethod}</p>}
                             </div>
 
+                            {/* Modal de información para Pago Móvil (se mantiene) */}
                             <Modal show={showMobilePaymentInfoModal} onClose={() => setShowMobilePaymentInfoModal(false)}>
                                 <div className="p-6">
                                     <h3 className="text-2xl font-bold text-center text-blue-600 mb-4">¡Realiza tu Pago Móvil!</h3>
                                     <p className="text-gray-700 mb-2 text-center text-sm font-semibold">
                                         El monto en Bolívares se calcula con la tasa actual del BCV.
                                     </p>
-                                    {/* Ya no hay indicador de carga porque la tasa viene directamente de las props */}
                                     {currentBcvRate > 0 && (
                                         <p className="text-gray-600 mb-4 text-center text-xs">
                                             Tasa BCV actual: **1 USD = {currentBcvRate.toFixed(2)} Bs**
@@ -306,112 +433,185 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                 </div>
                             </Modal>
 
-                            {showMobilePaymentForm && (
+                            {/* Formulario de detalles de pago (adaptado para tarjeta y pago móvil) */}
+                            {showPaymentDetailsForm && (
                                 <div className="mt-8">
-                                    <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Confirma tu Pago Móvil</h3>
-                                    <InputField
-                                        type="text"
-                                        name="banco_remitente"
-                                        label="Banco del Remitente"
-                                        value={formData.banco_remitente}
-                                        onChange={handleChange}
-                                        required={formData.paymentMethod === 'mobile-payment'}
-                                        placeholder="Ej: Banco Mercantil"
-                                        error={errors.banco_remitente}
-                                    />
+                                    <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Confirma tu Pago</h3>
 
-                                    <InputField
-                                        type="tel"
-                                        name="numero_telefono_remitente"
-                                        label="Número de Teléfono del Remitente"
-                                        value={formData.numero_telefono_remitente}
-                                        onChange={handleChange}
-                                        required={formData.paymentMethod === 'mobile-payment'}
-                                        placeholder="Ej: 04XX-XXXXXXX"
-                                        error={errors.numero_telefono_remitente}
-                                    />
-                                    <InputField
-                                        type="text"
-                                        name="cedula_remitente"
-                                        label="Cédula/RIF del Remitente"
-                                        value={formData.cedula_remitente}
-                                        onChange={handleChange}
-                                        required={formData.paymentMethod === 'mobile-payment'}
-                                        placeholder="Ej: V-12345678"
-                                        error={errors.cedula_remitente}
-                                    />
-                                    <InputField
-                                        type="text"
-                                        name="numero_referencia_pago"
-                                        label="Número de Referencia"
-                                        value={formData.numero_referencia_pago}
-                                        onChange={handleChange}
-                                        required={formData.paymentMethod === 'mobile-payment'}
-                                        placeholder="Ej: 1234567890"
-                                        error={errors.numero_referencia_pago}
-                                    />
-                                    <InputField
-                                        type="text"
-                                        name="monto"
-                                        label="Monto"
-                                        // Muestra USD y el equivalente en Bs con la tasa actual
-                                        value={`${totalUSD.toFixed(2)} USD ${currentBcvRate > 0 ? `(${totalBs.toFixed(2)} Bs)` : ''}`}
-                                        readOnly
-                                        error={errors.monto}
-                                    />
+                                    {/* Campos para Pago Móvil */}
+                                    {formData.paymentMethod === 'mobile-payment' && (
+                                        <Fragment>
+                                            <InputField
+                                                type="text"
+                                                name="banco_remitente"
+                                                label="Banco del Remitente"
+                                                value={formData.banco_remitente}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'mobile-payment'}
+                                                placeholder="Ej: Banco Mercantil"
+                                                error={errors.banco_remitente}
+                                            />
+                                            <InputField
+                                                type="tel"
+                                                name="numero_telefono_remitente"
+                                                label="Número de Teléfono del Remitente"
+                                                value={formData.numero_telefono_remitente}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'mobile-payment'}
+                                                placeholder="Ej: 04XX-XXXXXXX"
+                                                error={errors.numero_telefono_remitente}
+                                            />
+                                            <InputField
+                                                type="text"
+                                                name="cedula_remitente"
+                                                label="Cédula/RIF del Remitente"
+                                                value={formData.cedula_remitente}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'mobile-payment'}
+                                                placeholder="Ej: V-12345678"
+                                                error={errors.cedula_remitente}
+                                            />
+                                            <InputField
+                                                type="text"
+                                                name="numero_referencia_pago"
+                                                label="Número de Referencia de Pago Móvil"
+                                                value={formData.numero_referencia_pago}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'mobile-payment'}
+                                                placeholder="Ingrese todos los números del comprobante"
+                                                error={errors.numero_referencia_pago}
+                                            />
+                                        </Fragment>
+                                    )}
+
+                                    {/* Campos para Tarjeta de Crédito o Débito */}
+                                    {formData.paymentMethod === 'credit-debit-card' && (
+                                        <Fragment>
+                                            <InputField
+                                                type="text"
+                                                name="card_number"
+                                                label="Número de Tarjeta"
+                                                value={formData.card_number}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'credit-debit-card'}
+                                                placeholder="XXXX XXXX XXXX XXXX"
+                                                maxLength={19} // Incluye los espacios para el formato
+                                                inputMode="numeric"
+                                                pattern="[\d\s]{13,19}"
+                                                autoComplete="cc-number"
+                                                error={errors.card_number}
+                                            />
+                                            {cardType && (
+                                                <p className="text-gray-600 text-sm mb-4">Tipo de tarjeta: <strong className="text-blue-700">{cardType}</strong></p>
+                                            )}
+
+                                            <InputField
+                                                type="text"
+                                                name="card_holder_name"
+                                                label="Nombre del Tarjetahabiente"
+                                                value={formData.card_holder_name}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'credit-debit-card'}
+                                                placeholder="Como aparece en la tarjeta"
+                                                autoComplete="cc-name"
+                                                error={errors.card_holder_name}
+                                            />
+
+                                            {/* Campo unificado para Mes y Año de Vencimiento */}
+                                            <InputField
+                                                type="text"
+                                                name="card_expiry"
+                                                label="Fecha de Vencimiento (MM/AA o MM/AAAA)"
+                                                value={formData.card_expiry}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'credit-debit-card'}
+                                                placeholder="MM/AA"
+                                                maxLength={7} // MM/YYYY
+                                                inputMode="numeric"
+                                                pattern="(0[1-9]|1[0-2])\/?([0-9]{2}|[0-9]{4})"
+                                                autoComplete="cc-exp"
+                                                error={errors.card_expiry} // Ahora el error se asocia a card_expiry
+                                            />
+
+                                            <InputField
+                                                type="password" // Tipo password para ocultar el valor
+                                                name="card_cvv"
+                                                label="CVV/CVC"
+                                                value={formData.card_cvv}
+                                                onChange={handleChange}
+                                                required={formData.paymentMethod === 'credit-debit-card'}
+                                                placeholder="XXX o XXXX"
+                                                maxLength={4}
+                                                inputMode="numeric"
+                                                pattern="\d{3,4}"
+                                                autoComplete="cc-csc"
+                                                error={errors.card_cvv}
+                                            />
+                                        </Fragment>
+                                    )}
+
+                                    {/* Campo de referencia de pago, si aplica */}
+                                    {formData.paymentMethod !== 'mobile-payment' && formData.paymentMethod !== '' && ( // Solo si no es pago móvil, o si es tarjeta y queremos la referencia
+                                        <InputField
+                                            type="text"
+                                            name="numero_referencia_pago"
+                                            label="Número de Referencia de Pago (Opcional)"
+                                            value={formData.numero_referencia_pago}
+                                            onChange={handleChange}
+                                            required={false} // Mantener como opcional
+                                            placeholder="Referencia de tu pago (si aplica)"
+                                            error={errors.numero_referencia_pago}
+                                        />
+                                    )}
                                 </div>
                             )}
 
-                            <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" disabled={loading}>
-                                {loading ? 'Procesando...' : 'Completar Compra'}
-                            </button>
+                            <div className="flex items-center justify-between mt-8">
+                                <button
+                                    type="submit"
+                                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Procesando...' : 'Realizar Pedido'}
+                                </button>
+                            </div>
                         </form>
                     </div>
 
                     <div className="w-full md:w-1/4 px-4">
-                        <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-                            <h4 className="text-xl font-bold mb-4">
-                                Carrito
-                                <span className="text-black ml-2">
-                                    <i className="fa fa-shopping-cart"></i>
-                                    <b className="ml-1">{localCartItems.length}</b>
-                                </span>
-                            </h4>
+                        <div className="bg-white shadow-md rounded px-4 pt-6 pb-8 mb-4">
+                            <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Resumen del Pedido</h2>
                             {localCartItems.length === 0 ? (
-                                <p className="text-gray-600">El carrito está vacío.</p>
+                                <p className="text-gray-600">Tu carrito está vacío.</p>
                             ) : (
-                                localCartItems.map((item) => (
-                                    <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-200">
-                                        <p>
-                                            <a href="#" className="text-blue-600 hover:underline">{item.name}</a>
-                                            <span className="text-gray-700 ml-2">${item.price}</span>
-                                        </p>
-                                        <div className="flex items-center">
-                                            <button
-                                                onClick={() => handleQuantityChange(item.id, -1)}
-                                                disabled={item.quantity <= 1}
-                                                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded-l"
-                                            >
-                                                -
-                                            </button>
-                                            <span className="mx-2">{item.quantity}</span>
-                                            <button
-                                                onClick={() => handleQuantityChange(item.id, 1)}
-                                                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded-r"
-                                            >
-                                                +
-                                            </button>
-                                        </div>
+                                <ul>
+                                    {localCartItems.map(item => (
+                                        <li key={item.id} className="flex justify-between items-center mb-2">
+                                            <div>
+                                                <p className="text-gray-800 font-semibold">{item.name}</p>
+                                                <p className="text-gray-600 text-sm">Cantidad: {item.quantity}</p>
+                                            </div>
+                                            <div className="flex items-center">
+                                                <button onClick={() => handleQuantityChange(item.id, -1)} className="text-blue-500 hover:text-blue-700 px-2">-</button>
+                                                <span className="text-gray-800 font-semibold mx-2">${(item.price * item.quantity).toFixed(2)}</span>
+                                                <button onClick={() => handleQuantityChange(item.id, 1)} className="text-blue-500 hover:text-blue-700 px-2">+</button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            <div className="border-t pt-4 mt-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-lg font-semibold text-gray-800">Total USD:</span>
+                                    <span className="text-lg font-bold text-green-600">${totalUSD.toFixed(2)}</span>
+                                </div>
+                                {currentBcvRate > 0 && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-lg font-semibold text-gray-800">Total Bs (BCV):</span>
+                                        <span className="text-lg font-bold text-green-600">Bs {totalBs.toFixed(2)}</span>
                                     </div>
-                                ))
-                            )}
-                            <hr className="my-4" />
-                            <p className="text-right">Total: <span className="font-bold text-gray-800">${totalUSD.toFixed(2)}</span></p>
-                            {currentBcvRate > 0 && (
-                                <p className="text-right text-sm text-gray-600">
-                                    Total en Bs: <span className="font-bold text-gray-800">{totalBs.toFixed(2)} Bs (Tasa BCV)</span>
-                                </p>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

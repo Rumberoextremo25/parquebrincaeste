@@ -47,35 +47,61 @@ const Tienda = (props) => {
         return date.getDay();
     };
 
-    // Determina si la fecha seleccionada es de fin de semana (Viernes, Sábado, Domingo)
+    // MODIFICACIÓN: Determina si la fecha seleccionada es de fin de semana (Sábado, Domingo)
     const isWeekend =
-        getDayOfWeek(fecha) === 5 ||
-        getDayOfWeek(fecha) === 6 ||
-        getDayOfWeek(fecha) === 0; // 5=Viernes, 6=Sábado, 0=Domingo
-    // Determina si la fecha seleccionada es de entre semana (Martes, Miércoles, Jueves)
-    const isWeekday = getDayOfWeek(fecha) >= 2 && getDayOfWeek(fecha) <= 4; // 2=Martes, 3=Miércoles, 4=Jueves
+        getDayOfWeek(fecha) === 6 || getDayOfWeek(fecha) === 0; // 6=Sábado, 0=Domingo
+    // MODIFICACIÓN: Determina si la fecha seleccionada es de entre semana (Lunes a Viernes)
+    const isWeekday = getDayOfWeek(fecha) >= 1 && getDayOfWeek(fecha) <= 5; // 1=Lunes, 2=Martes, ..., 5=Viernes
 
-    // Filtra los brazaletes según el día de la semana
-    const filteredBabyParkBraceletProduct = PRODUCTS.find(
-        (p) =>
-            p.category === "Pass Baby Park" &&
-            ((isWeekday && p.name.includes("(Martes a Jueves)")) ||
-                (isWeekend && p.name.includes("(Viernes a Domingo)")))
+    // Precio base de los brazaletes según el día
+    const BRACELET_PRICE_WEEKDAY = 5.0; // Lunes a Viernes
+    const BRACELET_PRICE_WEEKEND = 6.0; // Sábado y Domingo
+
+    // MODIFICACIÓN: Encuentra el producto "Pass Baby Park" sin filtrar por nombre de día
+    const baseBabyParkBraceletProduct = PRODUCTS.find(
+        (p) => p.category === "Pass Baby Park"
     );
 
-    const filteredHourlyBraceletsProducts = PRODUCTS.filter(
-        (p) =>
-            p.category === "Brazalete" &&
-            ((isWeekday && p.name.includes("(Martes a Jueves)")) ||
-                (isWeekend && p.name.includes("(Viernes a Domingo)")))
+    // MODIFICACIÓN: Encuentra los productos "Brazalete" sin filtrar por nombre de día
+    const baseHourlyBraceletsProducts = PRODUCTS.filter(
+        (p) => p.category === "Brazalete"
+    );
+
+    // Crea un objeto del brazalete Baby Park con el precio ajustado
+    const adjustedBabyParkBraceletProduct = baseBabyParkBraceletProduct
+        ? {
+              ...baseBabyParkBraceletProduct,
+              price: isWeekend
+                  ? BRACELET_PRICE_WEEKEND
+                  : BRACELET_PRICE_WEEKDAY,
+              // Opcional: podrías ajustar el nombre si lo necesitas para mostrar en UI
+              // name: `Brazalete Baby Park (${isWeekend ? 'Fin de Semana' : 'Entre Semana'})`
+          }
+        : null;
+
+    // Crea un array de brazaletes por hora con los precios ajustados
+    const adjustedHourlyBraceletsProducts = baseHourlyBraceletsProducts.map(
+        (p) => ({
+            ...p,
+            price: isWeekend
+                ? BRACELET_PRICE_WEEKEND
+                : BRACELET_PRICE_WEEKDAY,
+            // Opcional: podrías ajustar el nombre si lo necesitas para mostrar en UI
+            // name: `${p.name.replace(/\s\(.*\)/, '')} (${isWeekend ? 'Fin de Semana' : 'Entre Semana'})`
+        })
     );
 
     // Filtra las medias (calcetines) - su precio ya es fijo en $1.50 desde el seeder
     const socksProducts = PRODUCTS.filter((p) => p.category === "Medias");
 
-    const selectedBraceletProduct = PRODUCTS.find(
-        (p) => p.id === selectedBraceletId
-    );
+    // MODIFICACIÓN: selectedBraceletProduct ahora se obtiene de los productos ajustados
+    const selectedBraceletProduct =
+        adjustedBabyParkBraceletProduct?.id === selectedBraceletId
+            ? adjustedBabyParkBraceletProduct
+            : adjustedHourlyBraceletsProducts.find(
+                  (p) => p.id === selectedBraceletId
+              );
+
     const selectedSockProduct = PRODUCTS.find(
         (p) => p.id === selectedSockTallaId
     );
@@ -89,8 +115,8 @@ const Tienda = (props) => {
         setSockQuantity(1); // Mantener en 1
 
         // Forzar selección del brazalete Baby Park si el tipo de cliente es 'under6'
-        if (type === "under6" && filteredBabyParkBraceletProduct) {
-            setSelectedBraceletId(filteredBabyParkBraceletProduct.id);
+        if (type === "under6" && adjustedBabyParkBraceletProduct) { // MODIFICACIÓN
+            setSelectedBraceletId(adjustedBabyParkBraceletProduct.id); // MODIFICACIÓN
             setBraceletQuantity(1);
         }
     };
@@ -101,21 +127,15 @@ const Tienda = (props) => {
         const isAnyBraceletSelected = selectedBraceletId !== "";
 
         if (isAnyBraceletSelected && socksProducts.length > 0) {
-            // Si hay un brazalete seleccionado y hay calcetines disponibles,
-            // y no se ha seleccionado una talla de calcetín, o la que se tiene no aplica,
-            // forzar la selección del primer calcetín disponible.
             const currentSelectedSockApplies = socksProducts.some(
                 (sock) => sock.id === selectedSockTallaId
             );
 
             if (!selectedSockTallaId || !currentSelectedSockApplies) {
-                // Asegúrate de que el ID del calcetín sea un string si así lo esperas en el select
                 setSelectedSockTallaId(String(socksProducts[0].id));
             }
             setSockQuantity(1); // Asegurar que la cantidad sea 1
         } else if (!isAnyBraceletSelected) {
-            // Si no hay brazalete seleccionado, permitir que el calcetín sea opcional
-            // o deseleccionarlo si ya estaba seleccionado
             setSelectedSockTallaId("");
             setSockQuantity(1);
         }
@@ -126,17 +146,14 @@ const Tienda = (props) => {
         // Al cambiar la fecha, re-evaluar si el brazalete actualmente seleccionado sigue siendo válido
         // para el nuevo día (entre semana/fin de semana).
         // Si no, deseleccionarlo.
-        if (selectedBraceletProduct) {
-            const currentProductId = selectedBraceletProduct.id;
+        if (selectedBraceletId) { // Aquí solo verificamos si hay un ID seleccionado
             let isValidSelection = false;
-
-            if (selectedBraceletProduct.category === "Pass Baby Park") {
-                isValidSelection =
-                    filteredBabyParkBraceletProduct &&
-                    filteredBabyParkBraceletProduct.id === currentProductId;
-            } else if (selectedBraceletProduct.category === "Brazalete") {
-                isValidSelection = filteredHourlyBraceletsProducts.some(
-                    (p) => p.id === currentProductId
+            // Si el seleccionado es Baby Park, verifica que exista el producto ajustado
+            if (selectedBraceletId === adjustedBabyParkBraceletProduct?.id) { // MODIFICACIÓN
+                isValidSelection = !!adjustedBabyParkBraceletProduct;
+            } else { // Si es un brazalete por hora, verifica que el ID esté entre los ajustados
+                isValidSelection = adjustedHourlyBraceletsProducts.some( // MODIFICACIÓN
+                    (p) => p.id === selectedBraceletId
                 );
             }
 
@@ -147,39 +164,34 @@ const Tienda = (props) => {
         // También, si es 'under6' y cambia la fecha, forzar la selección del Baby Park correcto para la nueva fecha
         if (
             clientType === "under6" &&
-            filteredBabyParkBraceletProduct &&
-            selectedBraceletId !== filteredBabyParkBraceletProduct.id
+            adjustedBabyParkBraceletProduct && // MODIFICACIÓN
+            selectedBraceletId !== adjustedBabyParkBraceletProduct.id // MODIFICACIÓN
         ) {
-            setSelectedBraceletId(filteredBabyParkBraceletProduct.id);
+            setSelectedBraceletId(adjustedBabyParkBraceletProduct.id); // MODIFICACIÓN
         }
     }, [
         fecha,
         isWeekday,
         isWeekend,
-        PRODUCTS,
+        PRODUCTS, // Aunque PRODUCTS no cambie, sus derivados sí lo hacen
         clientType,
-        selectedBraceletProduct,
-        filteredBabyParkBraceletProduct,
-        filteredHourlyBraceletsProducts,
         selectedBraceletId,
+        adjustedBabyParkBraceletProduct, // MODIFICACIÓN
+        adjustedHourlyBraceletsProducts, // MODIFICACIÓN
     ]);
 
     // --- Lógica para añadir ítems al carrito ---
     const handleAddToCart = () => {
         setMensaje("");
 
-        // Validar que la fecha no sea ni lunes (1) ni domingo (0) si quieres solo martes a jueves
-        // o si es domingo, que el precio sea de fin de semana
         const dayOfWeekForValidation = getDayOfWeek(fecha);
-        if (dayOfWeekForValidation === 1) {
-            // Lunes
-            setMensaje("No se pueden comprar brazaletes para los Lunes.");
-            return;
-        }
-        // Si la fecha seleccionada no es ni entre semana ni fin de semana según tus brazaletes cargados
+
+        // Ya no necesitamos validar si es lunes específicamente,
+        // ya que lunes a viernes tienen el mismo precio.
+        // Solo necesitamos que sea un día válido para la compra.
         if (!isWeekday && !isWeekend) {
             setMensaje(
-                "No hay brazaletes disponibles para la fecha seleccionada. Por favor, elige una fecha entre Martes y Domingo."
+                "No hay brazaletes disponibles para la fecha seleccionada. Por favor, elige una fecha válida (Lunes a Domingo)."
             );
             return;
         }
@@ -199,8 +211,8 @@ const Tienda = (props) => {
 
         const itemsToAdd = [];
 
-        // Asegúrate de que el precio del brazalete en el carrito sea el correcto para el día seleccionado
-        const braceletPrice = selectedBraceletProduct.price; // Este ya debería ser el precio correcto gracias al filtrado
+        // El precio del brazalete ya estará ajustado en selectedBraceletProduct
+        const braceletPrice = selectedBraceletProduct.price;
         const braceletCartItem = {
             uniqueId: Date.now() + "-bracelet-" + selectedBraceletProduct.id,
             product: { ...selectedBraceletProduct, price: braceletPrice }, // Asegura que el precio en el carrito sea el correcto
@@ -354,7 +366,7 @@ const Tienda = (props) => {
                             <div className="mt-6">
                                 {/* Sección de Brazalete Baby Park */}
                                 {clientType === "under6" &&
-                                    filteredBabyParkBraceletProduct && (
+                                    adjustedBabyParkBraceletProduct && ( // MODIFICACIÓN
                                         <div className="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200">
                                             <h3 className="text-xl font-semibold text-blue-800 mb-3">
                                                 Brazalete Baby Park
@@ -362,15 +374,15 @@ const Tienda = (props) => {
                                             <p className="text-blue-700 mb-2">
                                                 **
                                                 {
-                                                    filteredBabyParkBraceletProduct.name
+                                                    adjustedBabyParkBraceletProduct.name // MODIFICACIÓN
                                                 }
                                                 **:{" "}
                                                 {
-                                                    filteredBabyParkBraceletProduct.description
+                                                    adjustedBabyParkBraceletProduct.description // MODIFICACIÓN
                                                 }
                                                 <span className="font-bold ml-2">
-                                                    $
-                                                    {filteredBabyParkBraceletProduct.price.toFixed(
+                                                    ${" "}
+                                                    {adjustedBabyParkBraceletProduct.price.toFixed( // MODIFICACIÓN
                                                         2
                                                     )}
                                                 </span>
@@ -401,11 +413,10 @@ const Tienda = (props) => {
                                     )}
                                 {/* Si no se encontró el Baby Park para la fecha seleccionada */}
                                 {clientType === "under6" &&
-                                    !filteredBabyParkBraceletProduct && (
+                                    !adjustedBabyParkBraceletProduct && ( // MODIFICACIÓN
                                         <p className="text-red-500 text-sm mt-2">
                                             No hay brazaletes Baby Park
-                                            disponibles para la fecha
-                                            seleccionada.
+                                            disponibles.
                                         </p>
                                     )}
 
@@ -416,11 +427,11 @@ const Tienda = (props) => {
                                             Selecciona tu Franja Horaria
                                             (Brazalete)
                                         </h3>
-                                        {filteredHourlyBraceletsProducts.length >
+                                        {adjustedHourlyBraceletsProducts.length > // MODIFICACIÓN
                                         0 ? (
                                             <p className="text-green-700 mb-3">
                                                 Precio por brazalete: $
-                                                {filteredHourlyBraceletsProducts[0]?.price.toFixed(
+                                                {adjustedHourlyBraceletsProducts[0]?.price.toFixed( // MODIFICACIÓN
                                                     2
                                                 )}
                                             </p>
@@ -432,7 +443,7 @@ const Tienda = (props) => {
                                         )}
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                                            {filteredHourlyBraceletsProducts.map(
+                                            {adjustedHourlyBraceletsProducts.map( // MODIFICACIÓN
                                                 (bracelet) => (
                                                     <button
                                                         key={bracelet.id}
@@ -443,29 +454,25 @@ const Tienda = (props) => {
                                                             )
                                                         }
                                                         className={`p-3 border rounded-md text-sm font-medium text-center transition duration-200
-                                                        ${
-                                                            selectedBraceletId ===
-                                                            bracelet.id
-                                                                ? "bg-green-600 text-white shadow-md"
-                                                                : "bg-white text-green-700 hover:bg-green-100 border-green-300"
-                                                        }
-                                                    `}
+                                                            ${
+                                                                selectedBraceletId ===
+                                                                bracelet.id
+                                                                    ? "bg-green-600 text-white shadow-md"
+                                                                    : "bg-white text-green-700 hover:bg-green-100 border-green-300"
+                                                            }
+                                                        `}
                                                     >
                                                         {bracelet.description}{" "}
                                                         <br /> (
-                                                        {bracelet.name
-                                                            .replace(
-                                                                "Brazalete ",
-                                                                ""
-                                                            )
-                                                            .replace(
-                                                                " (Martes a Jueves)",
-                                                                ""
-                                                            )
-                                                            .replace(
-                                                                " (Viernes a Domingo)",
-                                                                ""
-                                                            )}
+                                                        {
+                                                            // Aquí podrías mostrar el nombre ajustado si lo hiciste,
+                                                            // o simplemente la descripción si es suficiente.
+                                                            // Si el nombre original tiene " (Martes a Jueves)",
+                                                            // quítalo al mostrarlo aquí.
+                                                            bracelet.name.replace("Brazalete ", "")
+                                                                .replace(" (Martes a Jueves)", "")
+                                                                .replace(" (Viernes a Domingo)", "")
+                                                        }
                                                         )
                                                     </button>
                                                 )
@@ -496,7 +503,7 @@ const Tienda = (props) => {
                                             </div>
                                         )}
                                         {!selectedBraceletId &&
-                                            filteredHourlyBraceletsProducts.length >
+                                            adjustedHourlyBraceletsProducts.length > // MODIFICACIÓN
                                                 0 && (
                                                 <p className="text-red-500 text-sm mt-2">
                                                     Por favor, selecciona una
@@ -504,7 +511,7 @@ const Tienda = (props) => {
                                                 </p>
                                             )}
                                         {clientType === "adultOrOver6" &&
-                                            filteredHourlyBraceletsProducts.length ===
+                                            adjustedHourlyBraceletsProducts.length === // MODIFICACIÓN
                                                 0 && (
                                                 <p className="text-red-500 text-sm mt-2">
                                                     No hay brazaletes de
@@ -543,9 +550,9 @@ const Tienda = (props) => {
                                             } // Convertir a int, si es vacío, dejarlo vacío
                                             className="w-full p-2 border rounded-md bg-white"
                                             disabled={
-                                                !selectedBraceletId ||
+                                                !selectedBraceletId || // Deshabilitar si no hay brazalete o no hay medias
                                                 socksProducts.length === 0
-                                            } // Deshabilitar si no hay brazalete o no hay medias
+                                            }
                                         >
                                             <option value="">
                                                 Selecciona la talla de medias
@@ -599,198 +606,124 @@ const Tienda = (props) => {
                                             (selectedBraceletId &&
                                                 !selectedSockTallaId) || // Hay brazalete pero no calcetín
                                             (clientType === "under6" &&
-                                                !filteredBabyParkBraceletProduct) || // Si es Baby Park y no hay producto
+                                                !adjustedBabyParkBraceletProduct) || // Si es Baby Park y no hay producto
                                             (clientType === "adultOrOver6" &&
-                                                filteredHourlyBraceletsProducts.length ===
+                                                adjustedHourlyBraceletsProducts.length ===
                                                     0) // Si es Trampolines y no hay productos
                                         }
-                                        className={`py-3 px-8 rounded-lg text-lg font-bold transition duration-300
-                                            ${
-                                                !selectedBraceletId ||
-                                                (selectedBraceletId &&
-                                                    !selectedSockTallaId) ||
-                                                (clientType === "under6" &&
-                                                    !filteredBabyParkBraceletProduct) ||
-                                                (clientType ===
-                                                    "adultOrOver6" &&
-                                                    filteredHourlyBraceletsProducts.length ===
-                                                        0)
-                                                    ? "bg-gray-400 cursor-not-allowed"
-                                                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-lg"
-                                            }
-                                        `}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 ease-in-out shadow-lg text-lg"
                                     >
                                         Añadir al Carrito
                                     </button>
                                 </div>
+                                {mensaje && (
+                                    <p className="text-center mt-4 text-sm text-gray-600">
+                                        {mensaje}
+                                    </p>
+                                )}
                             </div>
-                        )}
-                        {mensaje && (
-                            <p className="p-4 text-center text-red-600">
-                                {mensaje}
-                            </p>
                         )}
                     </div>
 
                     {/* Columna del Carrito de Compras */}
-                    <div className="bg-white shadow-lg rounded-lg overflow-hidden p-6">
+                    <div className="bg-gray-50 shadow-lg rounded-lg overflow-hidden p-6">
                         <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                            Tu Carrito ({cartItems.length} ítems)
+                            Tu Carrito
                         </h2>
-
                         {cartItems.length === 0 ? (
-                            <p className="text-gray-500 text-center py-8">
-                                El carrito está vacío. ¡Empieza a añadir
-                                productos!
+                            <p className="text-gray-600">
+                                Tu carrito está vacío. ¡Añade algunos productos!
                             </p>
                         ) : (
-                            <>
-                                <ul className="divide-y divide-gray-200">
-                                    {cartItems.map((item) => (
-                                        <li
-                                            key={item.uniqueId}
-                                            className="py-4 flex flex-col sm:flex-row justify-between items-center"
-                                        >
-                                            <div className="flex-1 text-center sm:text-left mb-2 sm:mb-0">
-                                                <p className="font-semibold text-gray-700">
-                                                    {item.product.name}
-                                                </p>
-                                                <p className="text-sm text-gray-500">
-                                                    {item.product.description}
-                                                </p>
-                                                {item.selectedDate && (
-                                                    <p className="text-xs text-gray-500">
-                                                        Fecha:{" "}
-                                                        {item.selectedDate}
-                                                    </p>
-                                                )}
-                                                {item.clientType && (
-                                                    <p className="text-xs text-gray-500">
-                                                        Tipo:{" "}
-                                                        {item.clientType ===
-                                                        "under6"
-                                                            ? "Niño < 6"
-                                                            : "Adulto/Niño > 6"}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleUpdateCartItemQuantity(
-                                                            item.uniqueId,
-                                                            item.quantity - 1
-                                                        )
-                                                    }
-                                                    className="p-1.5 bg-gray-200 rounded-full text-gray-700 hover:bg-gray-300 transition"
-                                                    disabled={
-                                                        item.quantity <= 1 ||
-                                                        item.product
-                                                            .category ===
-                                                            "Calcetines"
-                                                    } // Deshabilitar para calcetines
+                            <div>
+                                {cartItems.map((item) => (
+                                    <div
+                                        key={item.uniqueId}
+                                        className="flex items-center justify-between border-b py-3 last:border-b-0"
+                                    >
+                                        <div>
+                                            <p className="font-semibold text-gray-800">
+                                                {item.product.name} (
+                                                {item.selectedDate})
+                                            </p>
+                                            <p className="text-sm text-gray-600">
+                                                {item.product.description}
+                                            </p>
+                                            <p className="text-sm text-gray-600">
+                                                ${item.product.price.toFixed(2)}{" "}
+                                                x {item.quantity}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() =>
+                                                    handleUpdateCartItemQuantity(
+                                                        item.uniqueId,
+                                                        item.quantity - 1
+                                                    )
+                                                }
+                                                className="bg-red-200 text-red-700 p-1 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                                            >
+                                                -
+                                            </button>
+                                            <span className="font-semibold">
+                                                {item.quantity}
+                                            </span>
+                                            <button
+                                                onClick={() =>
+                                                    handleUpdateCartItemQuantity(
+                                                        item.uniqueId,
+                                                        item.quantity + 1
+                                                    )
+                                                }
+                                                className="bg-green-200 text-green-700 p-1 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                                            >
+                                                +
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    handleRemoveFromCart(
+                                                        item.uniqueId
+                                                    )
+                                                }
+                                                className="ml-3 text-red-500 hover:text-red-700"
+                                                title="Eliminar"
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    className="h-5 w-5"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
                                                 >
-                                                    <svg
-                                                        className="w-4 h-4"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth="2"
-                                                            d="M20 12H4"
-                                                        ></path>
-                                                    </svg>
-                                                </button>
-                                                <span className="font-medium text-gray-800">
-                                                    {item.quantity}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleUpdateCartItemQuantity(
-                                                            item.uniqueId,
-                                                            item.quantity + 1
-                                                        )
-                                                    }
-                                                    className="p-1.5 bg-gray-200 rounded-full text-gray-700 hover:bg-gray-300 transition"
-                                                    disabled={
-                                                        item.product
-                                                            .category ===
-                                                        "Calcetines"
-                                                    } // Deshabilitar para calcetines
-                                                >
-                                                    <svg
-                                                        className="w-4 h-4"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth="2"
-                                                            d="M12 4v16m8-8H4"
-                                                        ></path>
-                                                    </svg>
-                                                </button>
-                                                <span className="font-semibold text-gray-800 w-20 text-right">
-                                                    $
-                                                    {(
-                                                        item.product.price *
-                                                        item.quantity
-                                                    ).toFixed(2)}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleRemoveFromCart(
-                                                            item.uniqueId
-                                                        )
-                                                    }
-                                                    className="ml-3 text-red-500 hover:text-red-700 transition"
-                                                    title="Eliminar"
-                                                >
-                                                    <svg
-                                                        className="w-5 h-5"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth="2"
-                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                                        ></path>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <div className="text-right mt-6 pt-4 border-t border-gray-200">
-                                    <div className="text-2xl font-bold text-gray-900">
-                                        Total: ${totalCartPrice.toFixed(2)}
+                                                    <path
+                                                        fillRule="evenodd"
+                                                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z"
+                                                        clipRule="evenodd"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </div>
+                                ))}
+                                <div className="mt-6 pt-4 border-t-2 border-gray-200 flex justify-between items-center">
+                                    <span className="text-xl font-bold text-gray-800">
+                                        Total:
+                                    </span>
+                                    <span className="text-xl font-bold text-blue-600">
+                                        ${totalCartPrice.toFixed(2)}
+                                    </span>
+                                </div>
+                                <div className="mt-6 text-center">
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            handleSubmitCheckout();
-                                        }}
-                                        className="mt-4 w-full bg-green-600 text-white py-3 rounded-lg text-lg font-bold hover:bg-green-700 transition shadow-lg"
+                                        onClick={handleSubmitCheckout}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 ease-in-out shadow-lg text-lg"
+                                        disabled={cartItems.length === 0}
                                     >
                                         Proceder al Pago
                                     </button>
                                 </div>
-                            </>
+                            </div>
                         )}
                     </div>
                 </div>
