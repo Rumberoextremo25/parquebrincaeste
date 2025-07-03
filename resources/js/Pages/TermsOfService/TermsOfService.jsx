@@ -2,7 +2,7 @@ import React from 'react';
 import BannerHero from '@/Components/Hero/BannerHero';
 import Layout from '@/Layouts/Layout';
 import { Link } from '@inertiajs/react'; // Se mantiene si se usa en el futuro
-import TermsOfService from '../PrivacyPolicy/PrivacyPolicy';
+import TermsOfService from '../TermsOfService/TermsOfService';
 
 const TermsOfService = () => { // Nombre del componente ParkRules
     const rulesData = [ // Contenido ahora específico para "Reglas del Parque" con 12 reglas
