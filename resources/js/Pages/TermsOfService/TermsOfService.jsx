@@ -2,9 +2,9 @@ import React from 'react';
 import BannerHero from '@/Components/Hero/BannerHero';
 import Layout from '@/Layouts/Layout';
 import { Link } from '@inertiajs/react'; // Se mantiene si se usa en el futuro
-import TermsOfService from '../TermsOfService/TermsOfService';
 
-const TermsOfService = () => { // Nombre del componente ParkRules
+// const Terminos = () => {  <-- Esta es la declaración que quieres usar
+const Terminos = () => { // Nombre del componente ParkRules
     const rulesData = [ // Contenido ahora específico para "Reglas del Parque" con 12 reglas
         {
             title: "1. Calcetines Antideslizantes Obligatorios",
@@ -88,13 +88,13 @@ const TermsOfService = () => { // Nombre del componente ParkRules
             <BannerHero
                 title="NORMAS DEL PARQUE"
                 desc="Para la seguridad y el disfrute de todos en Brinca Este Jumping Park, le pedimos que lea y respete nuestras normas. ¡Su cumplimiento garantiza la máxima diversión!"
-                img="/img/home/park_rules_banner.jpg"
+                //img="/img/home/park_rules_banner.jpg"
             />
 
             <div className="container mx-auto p-4 py-16 sm:py-24">
                 <div className="bg-white p-8 sm:p-12 lg:p-16 rounded-2xl shadow-xl border border-gray-100 max-w-4xl mx-auto">
                     <h1 className="text-4xl font-extrabold text-gray-900 mb-8 text-center leading-tight">
-                        Reglas y Directrices de Brinca Este Jumping Park
+                        Normas de Brinca Este Jumping Park
                     </h1>
                     <p className="text-gray-600 text-lg mb-10 text-center">
                         Al ingresar a nuestras instalaciones, usted acepta las siguientes normas de seguridad y uso. Su cooperación es fundamental para una experiencia divertida y segura para todos.
@@ -127,4 +127,4 @@ const TermsOfService = () => { // Nombre del componente ParkRules
     );
 }
 
-export default TermsOfService;
+export default Terminos;
