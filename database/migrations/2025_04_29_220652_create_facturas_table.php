@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('numero_factura')->unique();
             $table->decimal('monto_total', 10, 2);
             $table->date('fecha_emision');
+            $table->date('fecha_uso_ticket')->nullable();
             $table->string('status')->default('pendiente');
 
             // --- ¡CAMPOS FALTANTES QUE CAUSAN EL ERROR! ---

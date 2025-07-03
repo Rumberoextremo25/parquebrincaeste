@@ -51,13 +51,6 @@ class InvoiceController extends Controller
         return $this->generatePdfResponse($factura);
     }
 
-    /**
-     * Método privado para generar el PDF de la factura.
-     * Encapsula toda la lógica de TCPDF.
-     *
-     * @param Factura $factura La instancia de la factura para la cual generar el PDF.
-     * @return \Illuminate\Http\Response
-     */
     private function generatePdfResponse(Factura $factura)
     {
         // Obtener la tasa BCV del modelo ExchangeRate, que ahora provee la tasa manual.
@@ -70,7 +63,7 @@ class InvoiceController extends Controller
 
         // Configuración básica del documento PDF
         $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor('Brinca Este 24 C.A');
+        $pdf->SetAuthor(PDF_AUTHOR);
         $pdf->SetTitle('Comprobante de Compra - Factura #' . ($factura->numero_factura ?? $factura->id));
         $pdf->SetSubject('Comprobante de Compra');
         $pdf->SetKeywords('Factura, Comprobante, Compra, Brinca Este');
@@ -116,11 +109,14 @@ class InvoiceController extends Controller
         <table cellspacing="0" cellpadding="2" style="width: 100%;">
             <tr>
                 <td style="width: 50%;"><strong>Número de Factura:</strong> ' . ($factura->numero_factura ?? 'N/A') . '</td>
-                <td style="width: 50%;"><strong>Fecha de Emisión:</strong> ' . (Carbon::parse($factura->fecha_emision)->format('d/m/Y H:i:s') ?? 'N/A') . '</td>
+                <td style="width: 50%;"><strong>Fecha de Emisión:</strong> ' . (Carbon::parse($factura->fecha_emision)->format('d/m/Y') ?? 'N/A') . '</td>
             </tr>
             <tr>
                 <td style="width: 50%;"><strong>Número de Orden:</strong> ' . ($ticket ? $ticket->order_number : 'N/A') . '</td>
                 <td style="width: 50%;"><strong>Monto Total:</strong> $' . number_format($factura->monto_total, 2, ',', '.') . '</td>
+            </tr>
+            <tr>
+                <td colspan="2" style="width: 100%;"><strong>Fecha de Uso del Ticket:</strong> ' . (isset($factura->created_at) ? Carbon::parse($factura->fecha_uso_ticket)->format('d/m/Y') : 'Fecha no especificada') . '</td>
             </tr>
             <tr>
                 <td colspan="2" style="width: 100%; text-align: right; font-weight: bold; color: #333;">
@@ -157,14 +153,14 @@ class InvoiceController extends Controller
                 $subtotalItemBs = $subtotalItemUSD * $bcvRate; // Calcular subtotal en Bs para el ítem
 
                 $html .= '
-                    <tr>
-                        <td style="width: 10%; text-align: center; border: 1px solid #ddd;">' . ($item->product_id ?? 'N/A') . '</td>
-                        <td style="width: 30%; border: 1px solid #ddd;">' . ($item->product ? htmlspecialchars($item->product->name) : 'Producto Desconocido') . '</td>
-                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">' . ($item->quantity ?? 'N/A') . '</td>
-                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format($precioUnitarioUSD, 2, ',', '.') . '</td>
-                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format($subtotalItemUSD, 2, ',', '.') . '</td>
-                        <td style="width: 15%; text-align: right; border: 1px solid #ddd;">' . number_format($subtotalItemBs, 2, ',', '.') . ' Bs</td>
-                    </tr>';
+                <tr>
+                    <td style="width: 10%; text-align: center; border: 1px solid #ddd;">' . ($item->product_id ?? 'N/A') . '</td>
+                    <td style="width: 30%; border: 1px solid #ddd;">' . ($item->product ? htmlspecialchars($item->product->name) : 'Producto Desconocido') . '</td>
+                    <td style="width: 15%; text-align: right; border: 1px solid #ddd;">' . ($item->quantity ?? 'N/A') . '</td>
+                    <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format($precioUnitarioUSD, 2, ',', '.') . '</td>
+                    <td style="width: 15%; text-align: right; border: 1px solid #ddd;">$' . number_format($subtotalItemUSD, 2, ',', '.') . '</td>
+                    <td style="width: 15%; text-align: right; border: 1px solid #ddd;">' . number_format($subtotalItemBs, 2, ',', '.') . ' Bs</td>
+                </tr>';
             }
         } else {
             $html .= '<tr><td colspan="6" style="text-align: center; border: 1px solid #ddd;">No hay ítems registrados para esta factura.</td></tr>'; // colspan 6

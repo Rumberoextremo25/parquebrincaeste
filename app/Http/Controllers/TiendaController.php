@@ -84,6 +84,8 @@ class TiendaController extends Controller
             Session::put('totalAmount', $totalCompra);
             Session::put('purchaseDate', $validatedData['fecha']);
 
+            //dd(Session::get('purchaseDate'), '1. Valor de purchaseDate después de guardarlo en la sesión (comprar)');
+
             // Redirect to the checkout route
             return redirect()->route('checkout.show');
         } catch (Exception $e) {

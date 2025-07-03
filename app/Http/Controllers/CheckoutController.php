@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\TicketItem;
 use App\Models\Venta; // Import the Venta model
 use App\Services\BcvService;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -123,8 +124,6 @@ class CheckoutController extends Controller
             $itemsForVenta = [];
 
             // --- Revalidar y Calcular Total en Backend ---
-            // This is CRITICAL for security: always calculate the price on the backend
-            // and do not trust the price sent from the frontend.
             foreach ($validatedData['items'] as $itemData) {
                 $product = Product::find($itemData['product_id']);
                 if (!$product) {
@@ -157,10 +156,10 @@ class CheckoutController extends Controller
                     'quantity' => $quantity,
                     'price' => $itemPrice, // Use the price adjusted by the backend
                     'subtotal' => $itemSubtotal,
-                    // New fields from frontend
+                    // New fields from frontend (including the dynamically generated product_name)
                     'selected_date' => $itemData['selected_date'],
                     'selected_time' => $itemData['selected_time'] ?? null,
-                    'product_name' => $itemData['product_name'],
+                    'product_name' => $itemData['product_name'], // This is the key part: it uses the name from frontend
                     'product_description' => $itemData['product_description'] ?? null,
                     'client_type' => $itemData['client_type'] ?? null,
                     'uniqueId' => $itemData['uniqueId'],
@@ -173,10 +172,10 @@ class CheckoutController extends Controller
                     'subtotal' => $itemSubtotal,
                     'created_at' => now(),
                     'updated_at' => now(),
-                    // New fields from frontend
+                    // New fields from frontend (including the dynamically generated product_name)
                     'selected_date' => $itemData['selected_date'],
                     'selected_time' => $itemData['selected_time'] ?? null,
-                    'product_name' => $itemData['product_name'],
+                    'product_name' => $itemData['product_name'], // This is the key part: it uses the name from frontend
                     'product_description' => $itemData['product_description'] ?? null,
                     'client_type' => $itemData['client_type'] ?? null,
                     'uniqueId' => $itemData['uniqueId'],
@@ -237,15 +236,20 @@ class CheckoutController extends Controller
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                     'subtotal' => $item['subtotal'],
-                    // New fields to save in TicketItem
+                    // New fields to save in TicketItem (including the dynamically generated product_name)
                     'selected_date' => $item['selected_date'],
                     'selected_time' => $item['selected_time'],
-                    'product_name' => $item['product_name'],
+                    'product_name' => $item['product_name'], // This is where the correct name is stored
                     'product_description' => $item['product_description'],
                     'client_type' => $item['client_type'],
                     'uniqueId' => $item['uniqueId'],
                 ]);
             }
+
+            // Obtener la fecha de uso del ticket de la sesión
+            $fechaUsoTicket = Session::get('purchaseDate');
+
+            //dd($fechaUsoTicket, '2. Valor de purchaseDate recuperado de la sesión (store)');
 
             // --- CREATE THE INVOICE DIRECTLY HERE ---
             $numeroFactura = 'FAC-' . Str::upper(Str::random(8)) . '-' . $ticket->id;
@@ -256,6 +260,7 @@ class CheckoutController extends Controller
                 'numero_factura' => $numeroFactura,
                 'monto_total' => $finalAmount,
                 'fecha_emision' => now(),
+                'fecha_uso_ticket' => $fechaUsoTicket, // AÑADIDO: Guardar la fecha de uso del ticket
                 // Initial invoice status based on payment method
                 'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_card', // Assuming 'credit-debit-card'
                 // Defensive change: Use ?? null here
@@ -295,10 +300,10 @@ class CheckoutController extends Controller
                     'order_number' => $ticket->order_number,
                     'factura_id' => $factura->id,
                     'fecha' => now()->toDateString(),
-                    // New fields to save in Venta
+                    // New fields to save in Venta (including the dynamically generated product_name)
                     'selected_date' => $item['selected_date'],
                     'selected_time' => $item['selected_time'],
-                    'product_name' => $item['product_name'],
+                    'product_name' => $item['product_name'], // This is where the correct name is stored
                     'product_description' => $item['product_description'],
                     'client_type' => $item['client_type'],
                     'uniqueId' => $item['uniqueId'],
@@ -311,6 +316,8 @@ class CheckoutController extends Controller
             // Clear the cart from the session
             try {
                 session()->forget('cartItems');
+                session()->forget('totalAmount'); // También limpiar el totalAmount
+                session()->forget('purchaseDate'); // AÑADIDO: Limpiar la fecha de compra de la sesión
             } catch (Exception $e) {
                 Log::error('Error al limpiar el carrito de la sesión: ' . $e->getMessage());
             }
@@ -323,7 +330,6 @@ class CheckoutController extends Controller
                 'total_amount' => $finalAmount,
                 'numero_factura' => $factura->numero_factura,
             ]);
-
         } catch (ValidationException $e) {
             // Rollback only if a transaction has been started.
             if (DB::transactionLevel() > 0) {

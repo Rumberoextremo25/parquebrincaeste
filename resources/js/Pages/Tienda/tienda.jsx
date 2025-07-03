@@ -61,6 +61,20 @@ const Tienda = (props) => {
     const BRACELET_PRICE_WEEKEND = 6.0; // Sábado y Domingo
     const BABY_PARK_PRICE = 6.0; // Costo fijo para Baby Park todos los días
 
+    // Mapeo de franjas horarias a colores de brazaletes (replicando la lógica del seeder PHP)
+    const timeColorMap = {
+        '11:00 AM a 12:00 PM': 'Azul',
+        '12:00 PM a 1:00 PM': 'Amarillo',
+        '1:00 PM a 2:00 PM': 'Rojo',
+        '2:00 PM a 3:00 PM': 'Verde Manzana',
+        '3:00 PM a 4:00 PM': 'Naranja',
+        '4:00 PM a 5:00 PM': 'Morado',
+        '5:00 PM a 6:00 PM': 'Negro',
+        '6:00 PM a 7:00 PM': 'Vinotinto',
+        '7:00 PM a 8:00 PM': 'Azul Rey',
+        '8:00 PM a 9:00 PM': 'Azul Marino',
+    };
+
     // Encuentra el producto "Pass Baby Park"
     const baseBabyParkBraceletProduct = PRODUCTS.find(
         (p) => p.category === "Pass Baby Park"
@@ -231,11 +245,22 @@ const Tienda = (props) => {
         const itemsToAdd = [];
 
         const braceletPrice = selectedBraceletProduct.price;
+        let braceletDisplayName = selectedBraceletProduct.name; // Default to the product's base name
+
+        // MODIFICACIÓN CLAVE: Ajustar el nombre del brazalete si es de trampolines y se seleccionó una hora
+        if (clientType === "adultOrOver6" && selectedTime) {
+            const color = timeColorMap[selectedTime];
+            if (color) {
+                // Assuming the base name is "Brazalete" and we want to append the color
+                braceletDisplayName = `Brazalete ${color}`;
+            }
+        }
+
         const braceletCartItem = {
             uniqueId: Date.now() + "-bracelet-" + selectedBraceletProduct.id + (selectedTime ? "-" + selectedTime.replace(/\s/g, '').replace(/:/g, '') : ''),
             product: { // Mantenemos el objeto product aquí para uso interno de Tienda.jsx
                 id: selectedBraceletProduct.id,
-                name: selectedBraceletProduct.name,
+                name: braceletDisplayName, // Usar el nombre dinámicamente generado
                 description: selectedBraceletProduct.description,
                 price: braceletPrice, // Este es el precio ajustado
             },
