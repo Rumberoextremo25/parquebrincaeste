@@ -60,7 +60,7 @@ const Footer = () => {
                         <div className="flex flex-col justify-between gap-3 py-5 text-sm font-medium lg:flex-row lg:items-center">
                             <div className="grow">
                                 <p>
-                                    Copyright © 2024.Todos los Derechos Reservados {" "}
+                                    Copyright © 2025.Todos los Derechos Reservados {" "}
                                     <Link
                                         href={route("privacy_policy")}
                                         className="text-blue-500"

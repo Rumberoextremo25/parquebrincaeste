@@ -1,39 +1,49 @@
-version: '3.8'
+version: '3.8' # Versión de Docker Compose
 
 services:
-  # Servicio para tu aplicación Laravel (el PHP)
+  # Servicio para tu aplicación Laravel (PHP con Apache)
   app:
     build:
       context: . # Busca el Dockerfile en la carpeta actual
-      dockerfile: Dockerfile
-    container_name: laravel_app
+      dockerfile: Dockerfile # Asegúrate de que este Dockerfile use una imagen PHP-Apache
+    container_name: laravel_app_apache # Renombrado para indicar Apache
+    restart: unless-stopped # Asegura que el contenedor se reinicie si se detiene
     volumes:
       - .:/var/www/html # Sincroniza tu código local con el contenedor
-    depends_on:
-      - db
-      - redis # Asegura que la BD y Redis estén listos antes que la app
-
-  # Servicio del servidor web Nginx
-  nginx:
-    image: nginx:alpine
-    container_name: laravel_nginx
+      # Monta el archivo de configuración de Apache dentro del contenedor
+      - ./docker/apache/vhost.conf:/etc/apache2/sites-available/000-default.conf
+      # Opcional: para Xdebug, si lo necesitas y tienes el archivo configurado
+      # - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
     ports:
       - "80:80" # Tu aplicación será accesible en http://localhost
-    volumes:
-      - .:/var/www/html # Sincroniza tu código local con Nginx
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf # Monta la configuración de Nginx
+      # - "443:443" # Opcional: para HTTPS si lo configuras
+    environment:
+      # Variables de entorno para Laravel
+      # Asegúrate de que estas coincidan con tu archivo .env o sobrescriban si es necesario
+      DB_CONNECTION: mysql
+      DB_HOST: db # Nombre del servicio de la base de datos en docker-compose
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-parquebrincaeste} # Usa el valor de tu .env o 'ticket' por defecto
+      DB_USERNAME: ${DB_USERNAME:-brincaeste}
+      DB_PASSWORD: ${DB_PASSWORD:-Tesla2024}
+      REDIS_HOST: redis # Nombre del servicio de Redis en docker-compose
+      REDIS_PORT: 6379
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_ENV: ${APP_ENV:-local}
     depends_on:
-      - app # Nginx necesita que la app (PHP-FPM) esté lista
+      - db # Asegura que la BD y Redis estén listos antes que la app
+      - redis
 
   # Servicio de la base de datos MariaDB
   db:
     image: mariadb:10.6 # Puedes usar mariadb:latest si prefieres la última versión
     container_name: laravel_mariadb
+    restart: unless-stopped # Asegura que el contenedor se reinicie si se detiene
     environment:
-      MARIADB_ROOT_PASSWORD: 1234 # CAMBIA ESTO
-      MARIADB_DATABASE: ticket # Nombre de tu base de datos
-      MARIADB_USER: laravel # Usuario para tu app
-      MARIADB_PASSWORD: 1234 # Contraseña para tu app (CAMBIA ESTO)
+      MARIADB_ROOT_PASSWORD: 1234 # CAMBIA ESTO - Contraseña de root
+      MARIADB_DATABASE: parquebrincaeste # Nombre de tu base de datos
+      MARIADB_USER: brincaeste # Usuario para tu app
+      MARIADB_PASSWORD: Tesla2024 # Contraseña para tu app (CAMBIA ESTO)
     volumes:
       - db_data:/var/lib/mysql # Persistencia de los datos de la BD
     ports:
@@ -43,6 +53,7 @@ services:
   redis:
     image: redis:latest
     container_name: laravel_redis
+    restart: unless-stopped # Asegura que el contenedor se reinicie si se detiene
     ports:
       - "6379:6379" # Acceso a Redis desde tu host si lo necesitas
     volumes:

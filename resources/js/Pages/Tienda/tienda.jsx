@@ -37,6 +37,9 @@ const Tienda = (props) => {
     const [selectedSockTallaId, setSelectedSockTallaId] = useState("");
     const [sockQuantity, setSockQuantity] = useState(1); // Cantidad de calcetines fija en 1
 
+    // Estado para la hora seleccionada
+    const [selectedTime, setSelectedTime] = useState("");
+
     // --- Estado para el carrito de compras ---
     const [cartItems, setCartItems] = useState([]);
 
@@ -47,60 +50,55 @@ const Tienda = (props) => {
         return date.getDay();
     };
 
-    // MODIFICACIÓN: Determina si la fecha seleccionada es de fin de semana (Sábado, Domingo)
+    // Determina si la fecha seleccionada es de fin de semana (Sábado, Domingo)
     const isWeekend =
         getDayOfWeek(fecha) === 6 || getDayOfWeek(fecha) === 0; // 6=Sábado, 0=Domingo
-    // MODIFICACIÓN: Determina si la fecha seleccionada es de entre semana (Lunes a Viernes)
+    // Determina si la fecha seleccionada es de entre semana (Lunes a Viernes)
     const isWeekday = getDayOfWeek(fecha) >= 1 && getDayOfWeek(fecha) <= 5; // 1=Lunes, 2=Martes, ..., 5=Viernes
 
     // Precio base de los brazaletes según el día
     const BRACELET_PRICE_WEEKDAY = 5.0; // Lunes a Viernes
     const BRACELET_PRICE_WEEKEND = 6.0; // Sábado y Domingo
+    const BABY_PARK_PRICE = 6.0; // Costo fijo para Baby Park todos los días
 
-    // MODIFICACIÓN: Encuentra el producto "Pass Baby Park" sin filtrar por nombre de día
+    // Encuentra el producto "Pass Baby Park"
     const baseBabyParkBraceletProduct = PRODUCTS.find(
         (p) => p.category === "Pass Baby Park"
     );
 
-    // MODIFICACIÓN: Encuentra los productos "Brazalete" sin filtrar por nombre de día
-    const baseHourlyBraceletsProducts = PRODUCTS.filter(
-        (p) => p.category === "Brazalete"
+    // Encuentra el producto "Brazalete" (general para trampolines)
+    const baseTrampolineBraceletProduct = PRODUCTS.find(
+        (p) => p.category === "Brazalete" && !p.name.includes("Brazalete Hora")
     );
 
-    // Crea un objeto del brazalete Baby Park con el precio ajustado
+    // Crea un objeto del brazalete Baby Park con el precio ajustado (fijo a $6)
     const adjustedBabyParkBraceletProduct = baseBabyParkBraceletProduct
         ? {
               ...baseBabyParkBraceletProduct,
-              price: isWeekend
-                  ? BRACELET_PRICE_WEEKEND
-                  : BRACELET_PRICE_WEEKDAY,
-              // Opcional: podrías ajustar el nombre si lo necesitas para mostrar en UI
-              // name: `Brazalete Baby Park (${isWeekend ? 'Fin de Semana' : 'Entre Semana'})`
+              price: BABY_PARK_PRICE, // PRECIO FIJO DE $6
           }
         : null;
 
-    // Crea un array de brazaletes por hora con los precios ajustados
-    const adjustedHourlyBraceletsProducts = baseHourlyBraceletsProducts.map(
-        (p) => ({
-            ...p,
-            price: isWeekend
-                ? BRACELET_PRICE_WEEKEND
-                : BRACELET_PRICE_WEEKDAY,
-            // Opcional: podrías ajustar el nombre si lo necesitas para mostrar en UI
-            // name: `${p.name.replace(/\s\(.*\)/, '')} (${isWeekend ? 'Fin de Semana' : 'Entre Semana'})`
-        })
-    );
+    // Brazalete de Trampolines ajustado por precio (según día de la semana)
+    const adjustedTrampolineBraceletProduct = baseTrampolineBraceletProduct
+        ? {
+              ...baseTrampolineBraceletProduct,
+              price: isWeekend
+                  ? BRACELET_PRICE_WEEKEND
+                  : BRACELET_PRICE_WEEKDAY,
+          }
+        : null;
 
-    // Filtra las medias (calcetines) - su precio ya es fijo en $1.50 desde el seeder
+    // Filtra las medias (calcetines)
     const socksProducts = PRODUCTS.filter((p) => p.category === "Medias");
 
-    // MODIFICACIÓN: selectedBraceletProduct ahora se obtiene de los productos ajustados
+    // selectedBraceletProduct ahora se obtiene de los productos ajustados
     const selectedBraceletProduct =
         adjustedBabyParkBraceletProduct?.id === selectedBraceletId
             ? adjustedBabyParkBraceletProduct
-            : adjustedHourlyBraceletsProducts.find(
-                  (p) => p.id === selectedBraceletId
-              );
+            : adjustedTrampolineBraceletProduct?.id === selectedBraceletId
+            ? adjustedTrampolineBraceletProduct
+            : null;
 
     const selectedSockProduct = PRODUCTS.find(
         (p) => p.id === selectedSockTallaId
@@ -111,19 +109,19 @@ const Tienda = (props) => {
         setClientType(type);
         setSelectedBraceletId("");
         setBraceletQuantity(1);
-        setSelectedSockTallaId(""); // Reiniciar talla de medias al cambiar tipo de cliente
-        setSockQuantity(1); // Mantener en 1
+        setSelectedSockTallaId("");
+        setSockQuantity(1);
+        setSelectedTime("");
 
-        // Forzar selección del brazalete Baby Park si el tipo de cliente es 'under6'
-        if (type === "under6" && adjustedBabyParkBraceletProduct) { // MODIFICACIÓN
-            setSelectedBraceletId(adjustedBabyParkBraceletProduct.id); // MODIFICACIÓN
+        if (type === "under6" && adjustedBabyParkBraceletProduct) {
+            setSelectedBraceletId(adjustedBabyParkBraceletProduct.id);
             setBraceletQuantity(1);
+        } else if (type === "adultOrOver6" && adjustedTrampolineBraceletProduct) {
+            setSelectedBraceletId(adjustedTrampolineBraceletProduct.id);
         }
     };
 
-    // MODIFICACIÓN IMPORTANTE: useEffect para forzar la selección de calcetines
     useEffect(() => {
-        // Verificar si se ha seleccionado algún brazalete (sea Baby Park o por hora)
         const isAnyBraceletSelected = selectedBraceletId !== "";
 
         if (isAnyBraceletSelected && socksProducts.length > 0) {
@@ -134,51 +132,71 @@ const Tienda = (props) => {
             if (!selectedSockTallaId || !currentSelectedSockApplies) {
                 setSelectedSockTallaId(String(socksProducts[0].id));
             }
-            setSockQuantity(1); // Asegurar que la cantidad sea 1
+            setSockQuantity(1);
         } else if (!isAnyBraceletSelected) {
             setSelectedSockTallaId("");
             setSockQuantity(1);
         }
     }, [selectedBraceletId, socksProducts, selectedSockTallaId]);
 
-    // Recalcular los productos cuando la fecha cambie para obtener los precios correctos
     useEffect(() => {
-        // Al cambiar la fecha, re-evaluar si el brazalete actualmente seleccionado sigue siendo válido
-        // para el nuevo día (entre semana/fin de semana).
-        // Si no, deseleccionarlo.
-        if (selectedBraceletId) { // Aquí solo verificamos si hay un ID seleccionado
+        if (selectedBraceletId) {
             let isValidSelection = false;
-            // Si el seleccionado es Baby Park, verifica que exista el producto ajustado
-            if (selectedBraceletId === adjustedBabyParkBraceletProduct?.id) { // MODIFICACIÓN
+            if (selectedBraceletId === adjustedBabyParkBraceletProduct?.id) {
                 isValidSelection = !!adjustedBabyParkBraceletProduct;
-            } else { // Si es un brazalete por hora, verifica que el ID esté entre los ajustados
-                isValidSelection = adjustedHourlyBraceletsProducts.some( // MODIFICACIÓN
-                    (p) => p.id === selectedBraceletId
-                );
+            } else if (selectedBraceletId === adjustedTrampolineBraceletProduct?.id) {
+                isValidSelection = !!adjustedTrampolineBraceletProduct;
             }
 
             if (!isValidSelection) {
                 setSelectedBraceletId("");
+                setSelectedTime("");
             }
         }
-        // También, si es 'under6' y cambia la fecha, forzar la selección del Baby Park correcto para la nueva fecha
+
         if (
             clientType === "under6" &&
-            adjustedBabyParkBraceletProduct && // MODIFICACIÓN
-            selectedBraceletId !== adjustedBabyParkBraceletProduct.id // MODIFICACIÓN
+            adjustedBabyParkBraceletProduct &&
+            selectedBraceletId !== adjustedBabyParkBraceletProduct.id
         ) {
-            setSelectedBraceletId(adjustedBabyParkBraceletProduct.id); // MODIFICACIÓN
+            setSelectedBraceletId(adjustedBabyParkBraceletProduct.id);
+            setSelectedTime("");
+        } else if (
+            clientType === "adultOrOver6" &&
+            adjustedTrampolineBraceletProduct &&
+            selectedBraceletId !== adjustedTrampolineBraceletProduct.id
+        ) {
+            setSelectedBraceletId(adjustedTrampolineBraceletProduct.id);
+            setSelectedTime("");
         }
     }, [
         fecha,
         isWeekday,
         isWeekend,
-        PRODUCTS, // Aunque PRODUCTS no cambie, sus derivados sí lo hacen
+        PRODUCTS,
         clientType,
         selectedBraceletId,
-        adjustedBabyParkBraceletProduct, // MODIFICACIÓN
-        adjustedHourlyBraceletsProducts, // MODIFICACIÓN
+        adjustedBabyParkBraceletProduct,
+        adjustedTrampolineBraceletProduct,
     ]);
+
+    // Generar opciones de hora en formato "HH:MM a HH:MM"
+    const generateTimeOptions = () => {
+        const options = [];
+        for (let hour = 11; hour <= 20; hour++) { // De 11 AM (11) a 8 PM (20) para que el último sea 9 PM (21)
+            const startHour = hour;
+            const endHour = hour + 1;
+
+            const formatHour = (h) => {
+                const period = h < 12 || h === 24 ? "AM" : "PM";
+                const displayHour = h % 12 === 0 ? 12 : h % 12;
+                return `${displayHour}:00 ${period}`;
+            };
+
+            options.push(`${formatHour(startHour)} a ${formatHour(endHour)}`);
+        }
+        return options;
+    };
 
     // --- Lógica para añadir ítems al carrito ---
     const handleAddToCart = () => {
@@ -186,9 +204,6 @@ const Tienda = (props) => {
 
         const dayOfWeekForValidation = getDayOfWeek(fecha);
 
-        // Ya no necesitamos validar si es lunes específicamente,
-        // ya que lunes a viernes tienen el mismo precio.
-        // Solo necesitamos que sea un día válido para la compra.
         if (!isWeekday && !isWeekend) {
             setMensaje(
                 "No hay brazaletes disponibles para la fecha seleccionada. Por favor, elige una fecha válida (Lunes a Domingo)."
@@ -201,7 +216,11 @@ const Tienda = (props) => {
             return;
         }
 
-        // Los calcetines son obligatorios si hay un brazalete
+        if (clientType === "adultOrOver6" && !selectedTime) {
+            setMensaje("Por favor, selecciona una hora para el brazalete.");
+            return;
+        }
+
         if (selectedBraceletProduct && !selectedSockProduct) {
             setMensaje(
                 "Las medias son obligatorias con la compra de un brazalete. Por favor, selecciona una talla."
@@ -211,23 +230,37 @@ const Tienda = (props) => {
 
         const itemsToAdd = [];
 
-        // El precio del brazalete ya estará ajustado en selectedBraceletProduct
         const braceletPrice = selectedBraceletProduct.price;
         const braceletCartItem = {
-            uniqueId: Date.now() + "-bracelet-" + selectedBraceletProduct.id,
-            product: { ...selectedBraceletProduct, price: braceletPrice }, // Asegura que el precio en el carrito sea el correcto
+            uniqueId: Date.now() + "-bracelet-" + selectedBraceletProduct.id + (selectedTime ? "-" + selectedTime.replace(/\s/g, '').replace(/:/g, '') : ''),
+            product: { // Mantenemos el objeto product aquí para uso interno de Tienda.jsx
+                id: selectedBraceletProduct.id,
+                name: selectedBraceletProduct.name,
+                description: selectedBraceletProduct.description,
+                price: braceletPrice, // Este es el precio ajustado
+            },
             quantity: braceletQuantity,
             selectedDate: fecha,
             clientType: clientType,
+            selectedTime: selectedTime,
         };
         itemsToAdd.push(braceletCartItem);
 
-        // Siempre añadir calcetines si se seleccionó un brazalete y un calcetín
         if (selectedSockProduct) {
             const sockCartItem = {
-                uniqueId: Date.now() + "-sock-" + selectedSockProduct.id,
-                product: { ...selectedSockProduct }, // El precio de la media ya es 1.50
-                quantity: sockQuantity, // Siempre 1
+                uniqueId: Date.now() + "-sock-" + selectedSockProduct.id + (selectedTime ? "-" + selectedTime.replace(/\s/g, '').replace(/:/g, '') : ''),
+                product: { // Mantenemos el objeto product para los calcetines también
+                    id: selectedSockProduct.id,
+                    name: selectedSockProduct.name,
+                    description: selectedSockProduct.description,
+                    price: selectedSockProduct.price,
+                },
+                quantity: sockQuantity,
+                // MODIFICACIÓN CLAVE: Añadir los campos que Laravel espera para todos los ítems
+                selectedDate: null, // No aplica para calcetines
+                selectedTime: null, // No aplica para calcetines
+                clientType: null, // No aplica para calcetines
+                product_description: selectedSockProduct.description, // Usar la descripción del calcetín
             };
             itemsToAdd.push(sockCartItem);
         }
@@ -241,6 +274,7 @@ const Tienda = (props) => {
         setBraceletQuantity(1);
         setSelectedSockTallaId("");
         setSockQuantity(1);
+        setSelectedTime("");
     };
 
     // --- Lógica para eliminar un ítem del carrito ---
@@ -263,25 +297,33 @@ const Tienda = (props) => {
 
     // --- Lógica para el submit final del carrito a Laravel ---
     const handleSubmitCheckout = () => {
-        // Validación frontend del carrito
+        setMensaje(""); // Limpiar mensaje antes de enviar
+
         if (cartItems.length === 0) {
             setMensaje("Tu carrito está vacío. Por favor, añade productos.");
             return;
         }
 
         // Construir el array 'items' con la estructura exacta que tu backend espera
-        // Mapea tus cartItems a { product_id, quantity }
+        // Aplanamos las propiedades del producto para que Checkout.jsx las reciba directamente
         const itemsToSubmit = cartItems.map((item) => ({
             product_id: item.product.id,
             quantity: item.quantity,
+            price: item.product.price, // Este es el precio ajustado (5$ o 6$)
+            selected_date: item.selectedDate,
+            selected_time: item.selectedTime || null,
+            product_name: item.product.name, // Añadimos el nombre del producto
+            product_description: item.product.description, // Añadimos la descripción del producto
+            client_type: item.clientType, // Añadimos el tipo de cliente
+            uniqueId: item.uniqueId, // Asegúrate de enviar el uniqueId
         }));
 
         const dataToSend = {
-            fecha: fecha,
+            fecha: fecha, // La fecha principal del formulario
             items: itemsToSubmit,
         };
 
-        router.post("/tienda", dataToSend);
+        router.post("/tienda", dataToSend); // Asegúrate de que esta ruta sea la correcta para tu método 'comprar'
     };
 
     // Calcular el total del carrito para mostrar en el frontend
@@ -366,7 +408,7 @@ const Tienda = (props) => {
                             <div className="mt-6">
                                 {/* Sección de Brazalete Baby Park */}
                                 {clientType === "under6" &&
-                                    adjustedBabyParkBraceletProduct && ( // MODIFICACIÓN
+                                    adjustedBabyParkBraceletProduct && (
                                         <div className="bg-blue-50 p-4 rounded-md mb-6 border border-blue-200">
                                             <h3 className="text-xl font-semibold text-blue-800 mb-3">
                                                 Brazalete Baby Park
@@ -374,15 +416,15 @@ const Tienda = (props) => {
                                             <p className="text-blue-700 mb-2">
                                                 **
                                                 {
-                                                    adjustedBabyParkBraceletProduct.name // MODIFICACIÓN
+                                                    adjustedBabyParkBraceletProduct.name
                                                 }
                                                 **:{" "}
                                                 {
-                                                    adjustedBabyParkBraceletProduct.description // MODIFICACIÓN
+                                                    adjustedBabyParkBraceletProduct.description
                                                 }
                                                 <span className="font-bold ml-2">
                                                     ${" "}
-                                                    {adjustedBabyParkBraceletProduct.price.toFixed( // MODIFICACIÓN
+                                                    {adjustedBabyParkBraceletProduct.price.toFixed(
                                                         2
                                                     )}
                                                 </span>
@@ -413,116 +455,101 @@ const Tienda = (props) => {
                                     )}
                                 {/* Si no se encontró el Baby Park para la fecha seleccionada */}
                                 {clientType === "under6" &&
-                                    !adjustedBabyParkBraceletProduct && ( // MODIFICACIÓN
+                                    !adjustedBabyParkBraceletProduct && (
                                         <p className="text-red-500 text-sm mt-2">
                                             No hay brazaletes Baby Park
                                             disponibles.
                                         </p>
                                     )}
 
-                                {/* Sección de Brazaletes por Hora */}
-                                {clientType === "adultOrOver6" && (
+                                {/* Sección de Brazalete y Hora para Adultos/Mayores de 6 */}
+                                {clientType === "adultOrOver6" && adjustedTrampolineBraceletProduct && (
                                     <div className="bg-green-50 p-4 rounded-md mb-6 border border-green-200">
                                         <h3 className="text-xl font-semibold text-green-800 mb-3">
-                                            Selecciona tu Franja Horaria
-                                            (Brazalete)
+                                            Brazalete Trampolines
                                         </h3>
-                                        {adjustedHourlyBraceletsProducts.length > // MODIFICACIÓN
-                                        0 ? (
-                                            <p className="text-green-700 mb-3">
-                                                Precio por brazalete: $
-                                                {adjustedHourlyBraceletsProducts[0]?.price.toFixed( // MODIFICACIÓN
-                                                    2
-                                                )}
-                                            </p>
-                                        ) : (
-                                            <p className="text-red-500 text-sm mb-3">
-                                                No hay brazaletes disponibles
-                                                para la fecha seleccionada.
-                                            </p>
-                                        )}
+                                        <p className="text-green-700 mb-3">
+                                            Precio por brazalete: $
+                                            {adjustedTrampolineBraceletProduct.price.toFixed(2)}
+                                        </p>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                                            {adjustedHourlyBraceletsProducts.map( // MODIFICACIÓN
-                                                (bracelet) => (
-                                                    <button
-                                                        key={bracelet.id}
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setSelectedBraceletId(
-                                                                bracelet.id
-                                                            )
-                                                        }
-                                                        className={`p-3 border rounded-md text-sm font-medium text-center transition duration-200
-                                                            ${
-                                                                selectedBraceletId ===
-                                                                bracelet.id
-                                                                    ? "bg-green-600 text-white shadow-md"
-                                                                    : "bg-white text-green-700 hover:bg-green-100 border-green-300"
-                                                            }
-                                                        `}
-                                                    >
-                                                        {bracelet.description}{" "}
-                                                        <br /> (
-                                                        {
-                                                            // Aquí podrías mostrar el nombre ajustado si lo hiciste,
-                                                            // o simplemente la descripción si es suficiente.
-                                                            // Si el nombre original tiene " (Martes a Jueves)",
-                                                            // quítalo al mostrarlo aquí.
-                                                            bracelet.name.replace("Brazalete ", "")
-                                                                .replace(" (Martes a Jueves)", "")
-                                                                .replace(" (Viernes a Domingo)", "")
-                                                        }
-                                                        )
-                                                    </button>
-                                                )
-                                            )}
+                                        <div className="mb-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedBraceletId(adjustedTrampolineBraceletProduct.id)}
+                                                className={`p-3 border rounded-md text-sm font-medium text-center w-full transition duration-200
+                                                    ${selectedBraceletId === adjustedTrampolineBraceletProduct.id
+                                                        ? "bg-green-600 text-white shadow-md"
+                                                        : "bg-white text-green-700 hover:bg-green-100 border-green-300"
+                                                    }`}
+                                            >
+                                                Brazalete Trampolines
+                                            </button>
                                         </div>
+
                                         {selectedBraceletId && (
-                                            <div className="flex items-center gap-2 mt-3">
-                                                <label
-                                                    htmlFor="hourlyQty"
-                                                    className="text-gray-700"
-                                                >
-                                                    Cantidad:
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    id="hourlyQty"
-                                                    min="1"
-                                                    value={braceletQuantity}
-                                                    onChange={(e) =>
-                                                        setBraceletQuantity(
-                                                            parseInt(
-                                                                e.target.value
-                                                            ) || 1
-                                                        )
-                                                    }
-                                                    className="w-20 p-2 border rounded-md text-center"
-                                                />
-                                            </div>
+                                            <>
+                                                {/* Selector de Cantidad */}
+                                                <div className="flex items-center gap-2 mt-3 mb-4">
+                                                    <label htmlFor="hourlyQty" className="text-gray-700">
+                                                        Cantidad:
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        id="hourlyQty"
+                                                        min="1"
+                                                        value={braceletQuantity}
+                                                        onChange={(e) =>
+                                                            setBraceletQuantity(parseInt(e.target.value) || 1)
+                                                        }
+                                                        className="w-20 p-2 border rounded-md text-center"
+                                                    />
+                                                </div>
+
+                                                {/* Selector de Hora */}
+                                                <div className="mb-3">
+                                                    <label htmlFor="timeSlot" className="block text-gray-700 mb-1">
+                                                        Selecciona tu Franja Horaria (11:00 AM - 9:00 PM):
+                                                    </label>
+                                                    <select
+                                                        id="timeSlot"
+                                                        value={selectedTime}
+                                                        onChange={(e) => setSelectedTime(e.target.value)}
+                                                        className="w-full p-2 border rounded-md bg-white"
+                                                        required
+                                                    >
+                                                        <option value="">Selecciona una franja horaria</option>
+                                                        {generateTimeOptions().map((time) => (
+                                                            <option key={time} value={time}>
+                                                                {time}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {!selectedTime && (
+                                                        <p className="text-red-500 text-sm mt-1">
+                                                            Por favor, selecciona una franja horaria para tu brazalete.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </>
                                         )}
-                                        {!selectedBraceletId &&
-                                            adjustedHourlyBraceletsProducts.length > // MODIFICACIÓN
-                                                0 && (
-                                                <p className="text-red-500 text-sm mt-2">
-                                                    Por favor, selecciona una
-                                                    franja horaria.
-                                                </p>
-                                            )}
-                                        {clientType === "adultOrOver6" &&
-                                            adjustedHourlyBraceletsProducts.length === // MODIFICACIÓN
-                                                0 && (
-                                                <p className="text-red-500 text-sm mt-2">
-                                                    No hay brazaletes de
-                                                    trampolines disponibles para
-                                                    la fecha seleccionada.
-                                                </p>
-                                            )}
+                                        {!adjustedTrampolineBraceletProduct && (
+                                            <p className="text-red-500 text-sm mt-2">
+                                                No hay brazaletes de trampolines disponibles para la fecha seleccionada.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
+                                {/* Si no se encontró el Brazalete de Trampolines para la fecha seleccionada */}
+                                {clientType === "adultOrOver6" &&
+                                    !adjustedTrampolineBraceletProduct && (
+                                        <p className="text-red-500 text-sm mt-2">
+                                            No hay brazaletes de trampolines
+                                            disponibles.
+                                        </p>
+                                    )}
 
-                                {/* Sección de Medias Especiales (MODIFICADA) */}
+                                {/* Sección de Medias Especiales */}
                                 <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200 mb-6">
                                     <h3 className="text-xl font-semibold text-yellow-800 mb-3">
                                         Medias Especiales
@@ -545,12 +572,12 @@ const Tienda = (props) => {
                                             onChange={(e) =>
                                                 setSelectedSockTallaId(
                                                     parseInt(e.target.value) ||
-                                                        ""
+                                                    ""
                                                 )
-                                            } // Convertir a int, si es vacío, dejarlo vacío
+                                            }
                                             className="w-full p-2 border rounded-md bg-white"
                                             disabled={
-                                                !selectedBraceletId || // Deshabilitar si no hay brazalete o no hay medias
+                                                !selectedBraceletId ||
                                                 socksProducts.length === 0
                                             }
                                         >
@@ -596,58 +623,71 @@ const Tienda = (props) => {
                                     )}
                                 </div>
 
-                                {/* Botón Añadir al Carrito (para el ítem seleccionado actualmente) */}
+                                {/* Botón Añadir al Carrito */}
                                 <div className="mt-6 text-center">
                                     <button
                                         type="button"
                                         onClick={handleAddToCart}
                                         disabled={
-                                            !selectedBraceletId || // No hay brazalete seleccionado
-                                            (selectedBraceletId &&
-                                                !selectedSockTallaId) || // Hay brazalete pero no calcetín
-                                            (clientType === "under6" &&
-                                                !adjustedBabyParkBraceletProduct) || // Si es Baby Park y no hay producto
-                                            (clientType === "adultOrOver6" &&
-                                                adjustedHourlyBraceletsProducts.length ===
-                                                    0) // Si es Trampolines y no hay productos
+                                            !selectedBraceletId ||
+                                            (clientType === "adultOrOver6" && !selectedTime) ||
+                                            !selectedSockTallaId ||
+                                            braceletQuantity < 1
                                         }
-                                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 ease-in-out shadow-lg text-lg"
+                                        className={`py-3 px-8 rounded-lg font-bold text-white transition duration-300
+                                            ${
+                                                !selectedBraceletId ||
+                                                (clientType === "adultOrOver6" && !selectedTime) ||
+                                                !selectedSockTallaId ||
+                                                braceletQuantity < 1
+                                                    ? "bg-gray-400 cursor-not-allowed"
+                                                    : "bg-blue-600 hover:bg-blue-700 shadow-md"
+                                            }
+                                        `}
                                     >
                                         Añadir al Carrito
                                     </button>
+                                    {mensaje && (
+                                        <p
+                                            className={`mt-4 text-sm font-semibold ${
+                                                mensaje.includes("añadidos")
+                                                    ? "text-green-600"
+                                                    : "text-red-600"
+                                            }`}
+                                        >
+                                            {mensaje}
+                                        </p>
+                                    )}
                                 </div>
-                                {mensaje && (
-                                    <p className="text-center mt-4 text-sm text-gray-600">
-                                        {mensaje}
-                                    </p>
-                                )}
                             </div>
                         )}
                     </div>
 
-                    {/* Columna del Carrito de Compras */}
-                    <div className="bg-gray-50 shadow-lg rounded-lg overflow-hidden p-6">
+                    {/* Columna del Carrito */}
+                    <div className="bg-white shadow-lg rounded-lg overflow-hidden p-6">
                         <h2 className="text-2xl font-bold text-gray-800 mb-6">
                             Tu Carrito
                         </h2>
                         {cartItems.length === 0 ? (
-                            <p className="text-gray-600">
-                                Tu carrito está vacío. ¡Añade algunos productos!
+                            <p className="text-gray-600 text-center">
+                                El carrito está vacío.
                             </p>
                         ) : (
-                            <div>
+                            <div className="space-y-4">
                                 {cartItems.map((item) => (
                                     <div
                                         key={item.uniqueId}
-                                        className="flex items-center justify-between border-b py-3 last:border-b-0"
+                                        className="flex items-center justify-between border-b pb-3"
                                     >
                                         <div>
                                             <p className="font-semibold text-gray-800">
-                                                {item.product.name} (
-                                                {item.selectedDate})
+                                                {item.product.name}
+                                                {item.selectedTime && ` (${item.selectedTime})`}
                                             </p>
                                             <p className="text-sm text-gray-600">
-                                                {item.product.description}
+                                                Fecha: {item.selectedDate}
+                                                {item.clientType === "under6" && " (Niño < 6)"}
+                                                {item.clientType === "adultOrOver6" && " (Adulto/ > 6)"}
                                             </p>
                                             <p className="text-sm text-gray-600">
                                                 ${item.product.price.toFixed(2)}{" "}
@@ -662,7 +702,7 @@ const Tienda = (props) => {
                                                         item.quantity - 1
                                                     )
                                                 }
-                                                className="bg-red-200 text-red-700 p-1 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                                                className="bg-red-500 hover:bg-red-600 text-white p-1 rounded-full w-6 h-6 flex items-center justify-center text-lg"
                                             >
                                                 -
                                             </button>
@@ -676,7 +716,7 @@ const Tienda = (props) => {
                                                         item.quantity + 1
                                                     )
                                                 }
-                                                className="bg-green-200 text-green-700 p-1 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold"
+                                                className="bg-green-500 hover:bg-green-600 text-white p-1 rounded-full w-6 h-6 flex items-center justify-center text-lg"
                                             >
                                                 +
                                             </button>
@@ -687,44 +727,47 @@ const Tienda = (props) => {
                                                     )
                                                 }
                                                 className="ml-3 text-red-500 hover:text-red-700"
-                                                title="Eliminar"
                                             >
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    className="h-5 w-5"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
+                                                Eliminar
                                             </button>
                                         </div>
                                     </div>
                                 ))}
-                                <div className="mt-6 pt-4 border-t-2 border-gray-200 flex justify-between items-center">
-                                    <span className="text-xl font-bold text-gray-800">
-                                        Total:
-                                    </span>
-                                    <span className="text-xl font-bold text-blue-600">
-                                        ${totalCartPrice.toFixed(2)}
-                                    </span>
-                                </div>
-                                <div className="mt-6 text-center">
-                                    <button
-                                        type="button"
-                                        onClick={handleSubmitCheckout}
-                                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 ease-in-out shadow-lg text-lg"
-                                        disabled={cartItems.length === 0}
-                                    >
-                                        Proceder al Pago
-                                    </button>
-                                </div>
                             </div>
                         )}
+
+                        <div className="mt-8 pt-4 border-t-2 border-gray-200">
+                            <div className="flex justify-between items-center text-xl font-bold text-gray-900">
+                                <span>Total:</span>
+                                <span>${totalCartPrice.toFixed(2)}</span>
+                            </div>
+                            <div className="mt-6 text-center">
+                                <button
+                                    onClick={handleSubmitCheckout}
+                                    disabled={cartItems.length === 0}
+                                    className={`py-3 px-8 rounded-lg font-bold text-white transition duration-300 w-full
+                                        ${
+                                            cartItems.length === 0
+                                                ? "bg-gray-400 cursor-not-allowed"
+                                                    : "bg-purple-600 hover:bg-purple-700 shadow-md"
+                                                }
+                                    `}
+                                >
+                                    Proceder al Pago
+                                </button>
+                            </div>
+                            {mensaje && (
+                                <p
+                                    className={`mt-4 text-sm font-semibold ${
+                                        mensaje.includes("vacío")
+                                            ? "text-red-600"
+                                            : "text-green-600"
+                                    }`}
+                                >
+                                    {mensaje}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

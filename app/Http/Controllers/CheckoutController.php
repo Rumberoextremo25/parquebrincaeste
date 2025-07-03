@@ -60,14 +60,18 @@ class CheckoutController extends Controller
                 'ciudad' => 'required|string|max:100',
                 'codigo_postal' => 'nullable|string|max:10',
                 'promoCode' => 'nullable|string|max:50',
-                // MODIFICACIÓN: Métodos de pago permitidos (eliminado 'in-store')
                 'paymentMethod' => 'required|string|in:credit-debit-card,mobile-payment',
-                'monto' => 'required|numeric|min:0', // Este es el monto que viene del frontend
+                'monto' => 'required|numeric|min:0', // This is the total amount sent from the frontend
                 'items' => 'required|array|min:1',
                 'items.*.product_id' => 'required|integer|exists:products,id',
                 'items.*.quantity' => 'required|integer|min:1',
-                // No validamos 'items.*.price' directamente desde el request
-                // porque el precio lo calculamos y revalidamos en el backend.
+                'items.*.price' => 'required|numeric|min:0', // Validate the adjusted price sent from frontend
+                'items.*.selected_date' => 'nullable|date', // New: Validate selected date per item
+                'items.*.selected_time' => 'nullable|string', // New: Validate selected time per item
+                'items.*.product_name' => 'required|string|max:255', // New: Validate product name per item
+                'items.*.product_description' => 'nullable|string', // New: Validate product description per item
+                'items.*.client_type' => 'nullable|string|in:adultOrOver6,under6', // New: Validate client type per item
+                'items.*.uniqueId' => 'required|string', // New: Validate uniqueId per item
             ];
 
             // --- Conditional Validation for Mobile Payment ---
@@ -76,43 +80,38 @@ class CheckoutController extends Controller
                     'banco_remitente' => 'required|string|max:255',
                     'numero_telefono_remitente' => 'required|string|max:20',
                     'cedula_remitente' => 'required|string|max:20',
-                    // MODIFICACIÓN: numero_referencia_pago es requerido y único para pago móvil
                     'numero_referencia_pago' => 'required|string|max:50|unique:tickets,numero_referencia_pago',
                 ]);
             }
 
             // --- Conditional Validation for Credit/Debit Card Payment ---
             if ($request->input('paymentMethod') === 'credit-debit-card') {
-                // Obtener el año actual para la validación de la fecha de vencimiento
-                $currentYearLastTwoDigits = (int) date('y');
+                // Get current year for expiry date validation
+                $currentYearFull = (int) date('Y');
                 $currentMonth = (int) date('m');
 
                 $rules = array_merge($rules, [
-                    // MODIFICACIÓN: Validación para número de tarjeta (solo dígitos, 13-19 de longitud)
-                    'card_number' => 'required|string|regex:/^\d{13,19}$/',
+                    'card_number' => 'required|string|regex:/^\d{13,19}$/', // Only digits, 13-19 length
                     'card_holder_name' => 'required|string|max:255',
                     'card_expiry_month' => 'required|integer|min:1|max:12',
-                    // MODIFICACIÓN: Validación para año de vencimiento
                     'card_expiry_year' => [
                         'required',
                         'integer',
-                        'min:' . $currentYearLastTwoDigits, // Mínimo el año actual (últimos 2 dígitos)
-                        'max:' . ($currentYearLastTwoDigits + 10), // Máximo 10 años en el futuro
-                        // Regla personalizada para validar que la tarjeta no esté expirada
-                        function ($attribute, $value, $fail) use ($request, $currentYearLastTwoDigits, $currentMonth) {
+                        'min:' . $currentYearFull, // Minimum current full year
+                        'max:' . ($currentYearFull + 10), // Maximum 10 years in the future
+                        // Custom rule to validate that the card has not expired
+                        function ($attribute, $value, $fail) use ($request, $currentYearFull, $currentMonth) {
                             $expiryMonth = (int) $request->input('card_expiry_month');
-                            $expiryYear = (int) $value; // value es el año (últimos 2 dígitos)
+                            $expiryYear = (int) $value; // value is the full year
 
-                            // Si el año de vencimiento es el año actual, el mes debe ser igual o mayor al mes actual
-                            if ($expiryYear === $currentYearLastTwoDigits && $expiryMonth < $currentMonth) {
+                            // If expiry year is current year, month must be equal or greater than current month
+                            if ($expiryYear === $currentYearFull && $expiryMonth < $currentMonth) {
                                 $fail('La fecha de vencimiento de la tarjeta no es válida o ya ha expirado.');
                             }
                         },
                     ],
-                    // MODIFICACIÓN: Validación para CVV (3 o 4 dígitos)
-                    'card_cvv' => 'required|string|digits_between:3,4',
-                    // MODIFICACIÓN: numero_referencia_pago es opcional para tarjeta de crédito/débito
-                    'numero_referencia_pago' => 'nullable|string|max:50',
+                    'card_cvv' => 'required|string|digits_between:3,4', // 3 or 4 digits for CVV
+                    'numero_referencia_pago' => 'nullable|string|max:50', // Optional for credit/debit card
                 ]);
             }
 
@@ -124,8 +123,8 @@ class CheckoutController extends Controller
             $itemsForVenta = [];
 
             // --- Revalidar y Calcular Total en Backend ---
-            // Esto es CRÍTICO para la seguridad: siempre calcula el precio en el backend
-            // y no confíes en el precio enviado desde el frontend.
+            // This is CRITICAL for security: always calculate the price on the backend
+            // and do not trust the price sent from the frontend.
             foreach ($validatedData['items'] as $itemData) {
                 $product = Product::find($itemData['product_id']);
                 if (!$product) {
@@ -133,22 +132,22 @@ class CheckoutController extends Controller
                 }
                 $quantity = $itemData['quantity'];
 
-                // MODIFICACIÓN: Ajustar precio del brazalete según el día de la semana en el backend
-                $itemPrice = $product->price; // Precio base del producto
-                if ($product->category === "Brazalete" || $product->category === "Pass Baby Park") {
-                    $fecha = $request->input('fecha'); // Asumiendo que 'fecha' se envía en el request
-                    $dayOfWeek = (new \DateTime($fecha))->format('w'); // 0 (Dom) a 6 (Sab)
+                // MODIFICATION: Adjust bracelet price based on the day of the week on the backend
+                $itemPrice = $product->price; // Base price from the product model
 
-                    // Lunes (1) a Viernes (5) = $5
-                    // Sábado (6) y Domingo (0) = $6
-                    if ($dayOfWeek >= 1 && $dayOfWeek <= 5) { // Lunes a Viernes
+                // Only apply dynamic pricing for 'Brazalete' and 'Pass Baby Park' categories
+                if ($product->category === "Brazalete" || $product->category === "Pass Baby Park") {
+                    $selectedDate = $itemData['selected_date']; // Use the selected_date from the item data
+                    $dayOfWeek = (new \DateTime($selectedDate))->format('w'); // 0 (Sun) to 6 (Sat)
+
+                    if ($product->category === "Pass Baby Park") {
+                        $itemPrice = 6.0; // Fixed price for Baby Park
+                    } elseif ($dayOfWeek >= 1 && $dayOfWeek <= 5) { // Monday (1) to Friday (5)
                         $itemPrice = 5.0;
-                    } elseif ($dayOfWeek == 0 || $dayOfWeek == 6) { // Domingo o Sábado
+                    } elseif ($dayOfWeek == 0 || $dayOfWeek == 6) { // Sunday (0) or Saturday (6)
                         $itemPrice = 6.0;
                     }
-                    // Si tienes otros días o lógicas de precio, ajústalas aquí
                 }
-
 
                 $itemSubtotal = $itemPrice * $quantity;
                 $totalCalculatedBackend += $itemSubtotal;
@@ -156,26 +155,40 @@ class CheckoutController extends Controller
                 $itemsForTicket[] = [
                     'product_id' => $product->id,
                     'quantity' => $quantity,
-                    'price' => $itemPrice, // Usar el precio ajustado por el backend
+                    'price' => $itemPrice, // Use the price adjusted by the backend
                     'subtotal' => $itemSubtotal,
+                    // New fields from frontend
+                    'selected_date' => $itemData['selected_date'],
+                    'selected_time' => $itemData['selected_time'] ?? null,
+                    'product_name' => $itemData['product_name'],
+                    'product_description' => $itemData['product_description'] ?? null,
+                    'client_type' => $itemData['client_type'] ?? null,
+                    'uniqueId' => $itemData['uniqueId'],
                 ];
 
                 $itemsForVenta[] = [
                     'product_id' => $product->id,
                     'quantity' => $quantity,
-                    'price' => $itemPrice, // Usar el precio ajustado por el backend
+                    'price' => $itemPrice, // Use the price adjusted by the backend
                     'subtotal' => $itemSubtotal,
                     'created_at' => now(),
                     'updated_at' => now(),
+                    // New fields from frontend
+                    'selected_date' => $itemData['selected_date'],
+                    'selected_time' => $itemData['selected_time'] ?? null,
+                    'product_name' => $itemData['product_name'],
+                    'product_description' => $itemData['product_description'] ?? null,
+                    'client_type' => $itemData['client_type'] ?? null,
+                    'uniqueId' => $itemData['uniqueId'],
                 ];
             }
 
-            // Aplicar promoción si existe
+            // Apply promotion if exists
             $descuento = $this->applyPromotion($validatedData['promoCode'] ?? null, $totalCalculatedBackend);
             $finalAmount = $totalCalculatedBackend - $descuento;
 
-            // Validación de seguridad para el monto final
-            // Permite una pequeña tolerancia para errores de coma flotante
+            // Security validation for the final amount
+            // Allow a small tolerance for floating point errors
             if (abs($validatedData['monto'] - $finalAmount) > 0.02) {
                 Log::error('Error de cálculo del monto final.', [
                     'frontend_monto' => $validatedData['monto'],
@@ -185,9 +198,9 @@ class CheckoutController extends Controller
                 throw new Exception("Error de cálculo del monto final. El monto enviado no coincide con el calculado en el servidor.");
             }
 
-            DB::beginTransaction(); // Inicia una transacción de base de datos
+            DB::beginTransaction(); // Start a database transaction
 
-            // --- Crear el Ticket (Orden) ---
+            // --- Create the Ticket (Order) ---
             $ticket = Ticket::create([
                 'user_id' => $request->user() ? $request->user()->id : null,
                 'order_number' => 'ORD-' . Str::upper(Str::random(10)),
@@ -200,23 +213,23 @@ class CheckoutController extends Controller
                 'promo_code' => $validatedData['promoCode'] ?? null,
                 'monto_total' => $finalAmount,
                 'payment_method' => $validatedData['paymentMethod'],
-                // MODIFICACIÓN: Estado inicial basado en el método de pago
-                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_card', // Asumiendo 'credit-debit-card'
-                // Campos de Pago Móvil (se guardan si existen en validatedData, si no, null)
+                // Initial status based on payment method
+                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_card', // Assuming 'credit-debit-card'
+                // Mobile Payment Fields (saved if they exist in validatedData, otherwise null)
                 'banco_remitente' => $validatedData['banco_remitente'] ?? null,
                 'numero_telefono_remitente' => $validatedData['numero_telefono_remitente'] ?? null,
                 'cedula_remitente' => $validatedData['cedula_remitente'] ?? null,
-                // Campos de Tarjeta de Crédito/Débito (se guardan si existen en validatedData, si no, null)
+                // Credit/Debit Card Fields (saved if they exist in validatedData, otherwise null)
                 'card_number' => $validatedData['card_number'] ?? null,
                 'card_holder_name' => $validatedData['card_holder_name'] ?? null,
                 'card_expiry_month' => $validatedData['card_expiry_month'] ?? null,
                 'card_expiry_year' => $validatedData['card_expiry_year'] ?? null,
                 'card_cvv' => $validatedData['card_cvv'] ?? null,
-                // numero_referencia_pago (se guarda si existe en validatedData, si no, null)
+                // numero_referencia_pago (saved if it exists in validatedData, otherwise null)
                 'numero_referencia_pago' => $validatedData['numero_referencia_pago'] ?? null,
             ]);
 
-            // --- Crear Ticket Items ---
+            // --- Create Ticket Items ---
             foreach ($itemsForTicket as $item) {
                 TicketItem::create([
                     'ticket_id' => $ticket->id,
@@ -224,10 +237,17 @@ class CheckoutController extends Controller
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
                     'subtotal' => $item['subtotal'],
+                    // New fields to save in TicketItem
+                    'selected_date' => $item['selected_date'],
+                    'selected_time' => $item['selected_time'],
+                    'product_name' => $item['product_name'],
+                    'product_description' => $item['product_description'],
+                    'client_type' => $item['client_type'],
+                    'uniqueId' => $item['uniqueId'],
                 ]);
             }
 
-            // --- CREAR LA FACTURA DIRECTAMENTE AQUÍ ---
+            // --- CREATE THE INVOICE DIRECTLY HERE ---
             $numeroFactura = 'FAC-' . Str::upper(Str::random(8)) . '-' . $ticket->id;
 
             $factura = Factura::create([
@@ -236,34 +256,34 @@ class CheckoutController extends Controller
                 'numero_factura' => $numeroFactura,
                 'monto_total' => $finalAmount,
                 'fecha_emision' => now(),
-                // MODIFICACIÓN: Estado inicial de la factura basado en el método de pago
-                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_card', // Asumiendo 'credit-debit-card'
-                // --- CAMBIO DEFENSIVO: Usar ?? null aquí ---
+                // Initial invoice status based on payment method
+                'status' => ($validatedData['paymentMethod'] === 'mobile-payment') ? 'pending_payment_mobile' : 'pending_payment_card', // Assuming 'credit-debit-card'
+                // Defensive change: Use ?? null here
                 'nombre_completo' => $validatedData['nombre_completo'] ?? null,
                 'correo' => $validatedData['correo'] ?? null,
                 'telefono' => $validatedData['telefono'] ?? null,
                 'direccion' => $validatedData['direccion'] ?? null,
                 'ciudad' => $validatedData['ciudad'] ?? null,
                 'codigo_postal' => $validatedData['codigo_postal'] ?? null,
-                // Campos de Pago Móvil (se guardan si existen en validatedData, si no, null)
+                // Mobile Payment Fields (saved if they exist in validatedData, otherwise null)
                 'banco_remitente' => $validatedData['banco_remitente'] ?? null,
                 'numero_telefono_remitente' => $validatedData['numero_telefono_remitente'] ?? null,
                 'cedula_remitente' => $validatedData['cedula_remitente'] ?? null,
-                // Campos de Tarjeta de Crédito/Débito (se guardan si existen en validatedData, si no, null)
+                // Credit/Debit Card Fields (saved if they exist in validatedData, otherwise null)
                 'card_number' => $validatedData['card_number'] ?? null,
                 'card_holder_name' => $validatedData['card_holder_name'] ?? null,
                 'card_expiry_month' => $validatedData['card_expiry_month'] ?? null,
                 'card_expiry_year' => $validatedData['card_expiry_year'] ?? null,
                 'card_cvv' => $validatedData['card_cvv'] ?? null,
-                // numero_referencia_pago (se guarda si existe en validatedData, si no, null)
+                // numero_referencia_pago (saved if it exists in validatedData, otherwise null)
                 'numero_referencia_pago' => $validatedData['numero_referencia_pago'] ?? null,
             ]);
 
-            // Si tu tabla `tickets` tiene `factura_id`, asegúrate de actualizarlo:
+            // If your `tickets` table has `factura_id`, make sure to update it:
             $ticket->factura_id = $factura->id;
             $ticket->save();
 
-            // --- Crear Registros de Venta ---
+            // --- Create Sales Records ---
             foreach ($itemsForVenta as $item) {
                 $ventaData = [
                     'product_id' => $item['product_id'],
@@ -275,20 +295,27 @@ class CheckoutController extends Controller
                     'order_number' => $ticket->order_number,
                     'factura_id' => $factura->id,
                     'fecha' => now()->toDateString(),
+                    // New fields to save in Venta
+                    'selected_date' => $item['selected_date'],
+                    'selected_time' => $item['selected_time'],
+                    'product_name' => $item['product_name'],
+                    'product_description' => $item['product_description'],
+                    'client_type' => $item['client_type'],
+                    'uniqueId' => $item['uniqueId'],
                 ];
                 Venta::create($ventaData);
             }
 
-            DB::commit(); // Confirma la transacción
+            DB::commit(); // Commit the transaction
 
-            // Limpia el carrito de la sesión
+            // Clear the cart from the session
             try {
                 session()->forget('cartItems');
             } catch (Exception $e) {
                 Log::error('Error al limpiar el carrito de la sesión: ' . $e->getMessage());
             }
 
-            // --- Redireccionar a la vista de éxito con datos flasheados ---
+            // --- Redirect to the success view with flashed data ---
             return redirect()->route('success')->with([
                 'order_number' => $ticket->order_number,
                 'payment_method' => $validatedData['paymentMethod'],
@@ -298,13 +325,13 @@ class CheckoutController extends Controller
             ]);
 
         } catch (ValidationException $e) {
-            // El rollback solo se intenta si la transacción ya había comenzado.
+            // Rollback only if a transaction has been started.
             if (DB::transactionLevel() > 0) {
                 DB::rollBack();
             }
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
-            // El rollback solo se intenta si la transacción ya había comenzado.
+            // Rollback only if a transaction has been started.
             if (DB::transactionLevel() > 0) {
                 DB::rollBack();
             }

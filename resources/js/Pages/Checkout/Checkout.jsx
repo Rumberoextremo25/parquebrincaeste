@@ -31,6 +31,7 @@ const InputField = React.memo(({ type, name, label, value, onChange, required, r
 
 // --- Componente principal Checkout ---
 const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialBcvRate }) => {
+    // Initialize localCartItems directly from initialCartItems, as they are already flattened
     const [localCartItems, setLocalCartItems] = useState(initialCartItems);
     const [formData, setFormData] = useState({
         nombre_completo: user?.name || '',
@@ -94,7 +95,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
     };
 
     useEffect(() => {
-        const calculatedTotalUSD = localCartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        const calculatedTotalUSD = localCartItems.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0);
         setTotalUSD(calculatedTotalUSD);
         setFormData((prevData) => ({ ...prevData, monto: calculatedTotalUSD }));
 
@@ -213,7 +214,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                 setLoading(false);
                 return;
             }
-            // La referencia de pago para tarjeta es opcional, ya que la validación principal es la tarjeta.
         }
 
         // Validación para Pago Móvil (solo el número de referencia)
@@ -230,10 +230,17 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
             monto: totalUSD,
             monto_bs: totalBs.toFixed(2),
             bcv_rate_used: currentBcvRate,
+            // MODIFICATION: Map localCartItems to include all the flattened properties
             items: localCartItems.map(item => ({
-                product_id: item.id,
+                product_id: item.product_id, // Use product_id from the item
                 quantity: item.quantity,
-                price: item.price,
+                price: item.price, // Use the adjusted price from the item
+                selected_date: item.selectedDate,
+                selected_time: item.selectedTime,
+                product_name: item.product_name,
+                product_description: item.product_description,
+                client_type: item.clientType,
+                uniqueId: item.uniqueId,
             }))
         };
 
@@ -286,15 +293,15 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
         });
     };
 
-    const handleQuantityChange = (productId, change) => {
+    const handleQuantityChange = (uniqueId, change) => {
         setLocalCartItems((prevItems) => {
             return prevItems.map((item) => {
-                if (item.id === productId) {
+                if (item.uniqueId === uniqueId) {
                     const newQuantity = item.quantity + change;
                     return {
                         ...item,
                         quantity: newQuantity > 0 ? newQuantity : 1,
-                        subtotal: (newQuantity > 0 ? newQuantity : 1) * item.price
+                        subtotal: (newQuantity > 0 ? newQuantity : 1) * (item.price || 0)
                     };
                 }
                 return item;
@@ -386,7 +393,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                 {errors.paymentMethod && <p className="text-red-500 text-xs italic mt-1">{errors.paymentMethod}</p>}
                             </div>
 
-                            {/* Modal de información para Pago Móvil (se mantiene) */}
+                            {/* Modal de información para Pago Móvil */}
                             <Modal show={showMobilePaymentInfoModal} onClose={() => setShowMobilePaymentInfoModal(false)}>
                                 <div className="p-6">
                                     <h3 className="text-2xl font-bold text-center text-blue-600 mb-4">¡Realiza tu Pago Móvil!</h3>
@@ -433,7 +440,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                 </div>
                             </Modal>
 
-                            {/* Formulario de detalles de pago (adaptado para tarjeta y pago móvil) */}
+                            {/* Formulario de detalles de pago */}
                             {showPaymentDetailsForm && (
                                 <div className="mt-8">
                                     <h3 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Confirma tu Pago</h3>
@@ -495,7 +502,7 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                                 onChange={handleChange}
                                                 required={formData.paymentMethod === 'credit-debit-card'}
                                                 placeholder="XXXX XXXX XXXX XXXX"
-                                                maxLength={19} // Incluye los espacios para el formato
+                                                maxLength={19}
                                                 inputMode="numeric"
                                                 pattern="[\d\s]{13,19}"
                                                 autoComplete="cc-number"
@@ -526,15 +533,15 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                                 onChange={handleChange}
                                                 required={formData.paymentMethod === 'credit-debit-card'}
                                                 placeholder="MM/AA"
-                                                maxLength={7} // MM/YYYY
+                                                maxLength={7}
                                                 inputMode="numeric"
                                                 pattern="(0[1-9]|1[0-2])\/?([0-9]{2}|[0-9]{4})"
                                                 autoComplete="cc-exp"
-                                                error={errors.card_expiry} // Ahora el error se asocia a card_expiry
+                                                error={errors.card_expiry}
                                             />
 
                                             <InputField
-                                                type="password" // Tipo password para ocultar el valor
+                                                type="password"
                                                 name="card_cvv"
                                                 label="CVV/CVC"
                                                 value={formData.card_cvv}
@@ -551,14 +558,14 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                     )}
 
                                     {/* Campo de referencia de pago, si aplica */}
-                                    {formData.paymentMethod !== 'mobile-payment' && formData.paymentMethod !== '' && ( // Solo si no es pago móvil, o si es tarjeta y queremos la referencia
+                                    {formData.paymentMethod !== 'mobile-payment' && formData.paymentMethod !== '' && (
                                         <InputField
                                             type="text"
                                             name="numero_referencia_pago"
                                             label="Número de Referencia de Pago (Opcional)"
                                             value={formData.numero_referencia_pago}
                                             onChange={handleChange}
-                                            required={false} // Mantener como opcional
+                                            required={false}
                                             placeholder="Referencia de tu pago (si aplica)"
                                             error={errors.numero_referencia_pago}
                                         />
@@ -569,46 +576,58 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                             <div className="flex items-center justify-between mt-8">
                                 <button
                                     type="submit"
-                                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                                    className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     disabled={loading}
                                 >
-                                    {loading ? 'Procesando...' : 'Realizar Pedido'}
+                                    {loading ? 'Procesando...' : 'Confirmar Pedido'}
                                 </button>
                             </div>
                         </form>
                     </div>
 
                     <div className="w-full md:w-1/4 px-4">
-                        <div className="bg-white shadow-md rounded px-4 pt-6 pb-8 mb-4">
+                        <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
                             <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Resumen del Pedido</h2>
                             {localCartItems.length === 0 ? (
-                                <p className="text-gray-600">Tu carrito está vacío.</p>
+                                <p className="text-gray-600">No hay productos en el carrito.</p>
                             ) : (
-                                <ul>
-                                    {localCartItems.map(item => (
-                                        <li key={item.id} className="flex justify-between items-center mb-2">
+                                <ul className="mb-4">
+                                    {localCartItems.map((item) => (
+                                        <li key={item.uniqueId} className="flex justify-between items-center mb-2 border-b pb-2 last:border-b-0 last:pb-0">
                                             <div>
-                                                <p className="text-gray-800 font-semibold">{item.name}</p>
-                                                <p className="text-gray-600 text-sm">Cantidad: {item.quantity}</p>
+                                                <p className="text-gray-800 font-semibold">{item.product_name}</p>
+                                                <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+                                                {item.selectedDate && <p className="text-sm text-gray-600">Fecha: {item.selectedDate}</p>}
+                                                {item.selectedTime && <p className="text-sm text-gray-600">Hora: {item.selectedTime}</p>}
                                             </div>
-                                            <div className="flex items-center">
-                                                <button onClick={() => handleQuantityChange(item.id, -1)} className="text-blue-500 hover:text-blue-700 px-2">-</button>
-                                                <span className="text-gray-800 font-semibold mx-2">${(item.price * item.quantity).toFixed(2)}</span>
-                                                <button onClick={() => handleQuantityChange(item.id, 1)} className="text-blue-500 hover:text-blue-700 px-2">+</button>
+                                            <div className="text-right">
+                                                <p className="text-gray-800 font-bold">${((item.price || 0) * item.quantity).toFixed(2)}</p>
+                                                <div className="flex items-center mt-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleQuantityChange(item.uniqueId, -1)}
+                                                        className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-1"
+                                                    >-</button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleQuantityChange(item.uniqueId, 1)}
+                                                        className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm"
+                                                    >+</button>
+                                                </div>
                                             </div>
                                         </li>
                                     ))}
                                 </ul>
                             )}
                             <div className="border-t pt-4 mt-4">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-lg font-semibold text-gray-800">Total USD:</span>
-                                    <span className="text-lg font-bold text-green-600">${totalUSD.toFixed(2)}</span>
+                                <div className="flex justify-between items-center text-xl font-bold text-gray-900">
+                                    <span>Total USD:</span>
+                                    <span>${totalUSD.toFixed(2)}</span>
                                 </div>
                                 {currentBcvRate > 0 && (
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-lg font-semibold text-gray-800">Total Bs (BCV):</span>
-                                        <span className="text-lg font-bold text-green-600">Bs {totalBs.toFixed(2)}</span>
+                                    <div className="flex justify-between items-center text-lg font-bold text-gray-700 mt-2">
+                                        <span>Total Bs:</span>
+                                        <span>{totalBs.toFixed(2)} Bs</span>
                                     </div>
                                 )}
                             </div>

@@ -1,6 +1,6 @@
-# Usa una imagen de PHP 8.2 con PHP-FPM y Alpine Linux.
+# Usa una imagen de PHP 8.2 con Apache y Alpine Linux.
 # Esta es una imagen ligera y optimizada para servidores web.
-FROM php:8.2-fpm-alpine
+FROM php:8.2-apache-alpine
 
 # Define las variables para el ID de usuario (PUID) y el ID de grupo (PGID) de tu máquina.
 # ¡IMPORTANTE!: Reemplaza '1000' por los números que obtuviste al ejecutar 'id -u' y 'id -g' en tu terminal.
@@ -57,7 +57,10 @@ RUN docker-php-ext-install -j$(nproc) \
 # Limpia las dependencias de construcción para reducir el tamaño final de la imagen Docker.
 RUN apk del .build-deps
 
-# Ajusta el usuario bajo el cual PHP-FPM se ejecutará dentro del contenedor.
+# Habilita el módulo de reescritura de Apache (mod_rewrite) para las URLs amigables de Laravel.
+RUN a2enmod rewrite
+
+# Ajusta el usuario bajo el cual Apache se ejecutará dentro del contenedor.
 # Esto es CRUCIAL para evitar problemas de permisos con las carpetas compartidas (bind mounts).
 # Borramos el usuario 'www-data' por defecto y lo recreamos con tu PUID/PGID.
 RUN deluser www-data && \
@@ -80,8 +83,10 @@ COPY . .
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Expone el puerto 9000, que es el puerto por defecto de PHP-FPM.
-EXPOSE 9000
+# Expone el puerto 80, que es el puerto por defecto de Apache.
+EXPOSE 80
 
 # El comando que se ejecuta cuando el contenedor se inicia.
-CMD ["php-fpm"]
+# La imagen base de PHP-Apache ya tiene un CMD predefinido para iniciar Apache,
+# por lo que no es estrictamente necesario definirlo aquí a menos que quieras sobrescribir.
+# CMD ["apache2-foreground"] # Este es el comando por defecto en la imagen de Apache.

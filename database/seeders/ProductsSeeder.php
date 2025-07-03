@@ -10,38 +10,25 @@ class ProductsSeeder extends Seeder
     public function run()
     {
         // Precios definidos para brazaletes
-        $precio_brazalete_semana = 5.00; // Martes a Viernes
-        $precio_brazalete_fin_semana = 6.00; // Sabado a Domingo
-        $precio_calcetines = 1.50; // ¡Costo actualizado para las medias!
+        // Estas constantes ahora solo reflejan los precios base que el frontend ajustará.
+        $precio_brazalete_general = 5.00; // Precio base para brazaletes de trampolines
+        $precio_calcetines = 1.50; // Costo actualizado para las medias
+        $precio_baby_park = 6.00; // Costo fijo para Baby Park todos los días
 
         $products = [];
 
-        // Generar brazaletes por hora para Días de Semana (Martes a Jueves)
+        // MODIFICACIÓN: Generar UN SOLO conjunto de brazaletes por hora para trampolines.
+        // El frontend determinará el precio ($5 o $6) según el día seleccionado.
         $products = array_merge($products, $this->generateBrazaletesByHour(
-            $precio_brazalete_semana,
-            ' (Martes a Viernes)' // Sufijo para diferenciar
+            $precio_brazalete_general // Usamos un precio base, el frontend lo ajusta
         ));
 
-        // Generar brazaletes por hora para Fines de Semana (Viernes a Domingo)
-        $products = array_merge($products, $this->generateBrazaletesByHour(
-            $precio_brazalete_fin_semana,
-            ' (Sabado a Domingo)' // Sufijo para diferenciar
-        ));
-
-        // Brazalete "Baby Park" para Días de Semana
+        // MODIFICACIÓN: Brazalete "Baby Park" con precio fijo de $6 y nombre sin sufijo de día
+        // Solo se crea un único producto "Brazalete Baby Park"
         $products[] = $this->createProductData(
-            'Brazalete Baby Park (Martes a Viernes)',
-            'Todas las Horas',
-            $precio_brazalete_semana,
-            'Pass Baby Park',
-            true
-        );
-
-        // Brazalete "Baby Park" para Fines de Semana
-        $products[] = $this->createProductData(
-            'Brazalete Baby Park (Sabado a Domingo)',
-            'Todas las Horas',
-            $precio_brazalete_fin_semana,
+            'Brazalete Baby Park', // Nombre sin sufijo de día
+            'Acceso a todas las horas del área Baby Park.', // Descripción más general
+            $precio_baby_park, // Usar el precio fijo
             'Pass Baby Park',
             true
         );
@@ -63,7 +50,7 @@ class ProductsSeeder extends Seeder
         string $description,
         float $price,
         string $category,
-        bool  $onlyChildren = false,
+        bool   $onlyChildren = false,
     ): array {
         return [
             'name' => $name,
@@ -78,14 +65,14 @@ class ProductsSeeder extends Seeder
 
     /**
      * Helper para generar datos de brazaletes por hora.
-     * Añadimos un parámetro para el sufijo del nombre.
+     * Ya no se necesita el nameSuffix, ya que el precio se ajusta en el frontend.
      */
-    private function generateBrazaletesByHour(float $price, string $nameSuffix = ''): array
+    private function generateBrazaletesByHour(float $price): array
     {
         $brazaletes = [];
         $horas = [
-            '11:00 AM a 12:00 M' => 'Azul',
-            '12:00 M a 1:00 PM' => 'Amarillo',
+            '11:00 AM a 12:00 PM' => 'Azul',
+            '12:00 PM a 1:00 PM' => 'Amarillo',
             '1:00 PM a 2:00 PM' => 'Rojo',
             '2:00 PM a 3:00 PM' => 'Verde Manzana',
             '3:00 PM a 4:00 PM' => 'Naranja',
@@ -98,7 +85,7 @@ class ProductsSeeder extends Seeder
 
         foreach ($horas as $description => $color) {
             $brazaletes[] = $this->createProductData(
-                "Brazalete $color" . $nameSuffix, // Agregamos el sufijo al nombre
+                "Brazalete $color", // Nombre sin sufijo de día
                 $description,
                 $price,
                 'Brazalete'
