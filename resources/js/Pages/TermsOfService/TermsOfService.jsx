@@ -1,12 +1,10 @@
 import React from 'react';
-// Restaurando el uso de aliases (@/) para componentes compartidos.
-// Asegúrate de que estos aliases estén configurados correctamente en tu configuración de Vite/JS.
 import BannerHero from '@/Components/Hero/BannerHero';
 import Layout from '@/Layouts/Layout';
 import { Link } from '@inertiajs/react'; // Se mantiene si se usa en el futuro
-import PrivacyPolicy from '../PrivacyPolicy/PrivacyPolicy';
+import TermsOfService from '../PrivacyPolicy/PrivacyPolicy';
 
-const PrivacyPolicy = () => { // Nombre del componente ParkRules
+const TermsOfService = () => { // Nombre del componente ParkRules
     const rulesData = [ // Contenido ahora específico para "Reglas del Parque" con 12 reglas
         {
             title: "1. Calcetines Antideslizantes Obligatorios",
@@ -129,4 +127,4 @@ const PrivacyPolicy = () => { // Nombre del componente ParkRules
     );
 }
 
-export default PrivacyPolicy;
+export default TermsOfService;
