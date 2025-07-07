@@ -573,10 +573,11 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                 </div>
                             )}
 
-                            <div className="flex items-center justify-between mt-8">
+                            {/* Botón de envío */}
+                            <div className="mt-8">
                                 <button
                                     type="submit"
-                                    className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed"
                                     disabled={loading}
                                 >
                                     {loading ? 'Procesando...' : 'Confirmar Pedido'}
@@ -585,51 +586,65 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                         </form>
                     </div>
 
-                    <div className="w-full md:w-1/4 px-4">
-                        <div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-                            <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Resumen del Pedido</h2>
+                    {/* Resumen del pedido (siempre visible) */}
+                    <div className="w-full md:w-1/4 px-4 mt-8 md:mt-0">
+                        <div className="bg-white shadow-md rounded p-6">
+                            <h2 className="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Resumen del Pedido</h2>
                             {localCartItems.length === 0 ? (
-                                <p className="text-gray-600">No hay productos en el carrito.</p>
+                                <p className="text-gray-600">Tu carrito está vacío.</p>
                             ) : (
-                                <ul className="mb-4">
+                                <ul>
                                     {localCartItems.map((item) => (
-                                        <li key={item.uniqueId} className="flex justify-between items-center mb-2 border-b pb-2 last:border-b-0 last:pb-0">
+                                        <li key={item.uniqueId} className="flex justify-between items-center mb-2 pb-2 border-b border-gray-200 last:border-b-0">
                                             <div>
-                                                <p className="text-gray-800 font-semibold">{item.product_name}</p>
-                                                <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
-                                                {item.selectedDate && <p className="text-sm text-gray-600">Fecha: {item.selectedDate}</p>}
-                                                {item.selectedTime && <p className="text-sm text-gray-600">Hora: {item.selectedTime}</p>}
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-gray-800 font-bold">${((item.price || 0) * item.quantity).toFixed(2)}</p>
+                                                <span className="font-semibold text-gray-800">{item.product_name}</span>
+                                                <div className="text-sm text-gray-600">
+                                                    {item.client_type && <p>Tipo: {item.client_type}</p>}
+                                                    {item.selectedDate && <p>Fecha: {item.selectedDate}</p>}
+                                                    {item.selectedTime && <p>Hora: {item.selectedTime}</p>}
+                                                </div>
                                                 <div className="flex items-center mt-1">
                                                     <button
                                                         type="button"
                                                         onClick={() => handleQuantityChange(item.uniqueId, -1)}
-                                                        className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mr-1"
-                                                    >-</button>
+                                                        className="bg-gray-200 text-gray-700 px-2 py-1 rounded-l hover:bg-gray-300"
+                                                    >
+                                                        -
+                                                    </button>
+                                                    <span className="bg-gray-100 text-gray-800 px-3 py-1">{item.quantity}</span>
                                                     <button
                                                         type="button"
                                                         onClick={() => handleQuantityChange(item.uniqueId, 1)}
-                                                        className="bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm"
-                                                    >+</button>
+                                                        className="bg-gray-200 text-gray-700 px-2 py-1 rounded-r hover:bg-gray-300"
+                                                    >
+                                                        +
+                                                    </button>
                                                 </div>
                                             </div>
+                                            <span className="font-bold text-gray-800">${((item.price || 0) * item.quantity).toFixed(2)}</span>
                                         </li>
                                     ))}
                                 </ul>
                             )}
-                            <div className="border-t pt-4 mt-4">
-                                <div className="flex justify-between items-center text-xl font-bold text-gray-900">
-                                    <span>Total USD:</span>
-                                    <span>${totalUSD.toFixed(2)}</span>
+                            <div className="mt-4 pt-4 border-t border-gray-300">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-semibold text-lg text-gray-700">Subtotal USD:</span>
+                                    <span className="font-bold text-lg text-gray-800">${totalUSD.toFixed(2)}</span>
                                 </div>
                                 {currentBcvRate > 0 && (
-                                    <div className="flex justify-between items-center text-lg font-bold text-gray-700 mt-2">
-                                        <span>Total Bs:</span>
-                                        <span>{totalBs.toFixed(2)} Bs</span>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="font-semibold text-lg text-gray-700">Total en Bs (BCV):</span>
+                                        <span className="font-bold text-lg text-green-700">{totalBs.toFixed(2)} Bs</span>
                                     </div>
                                 )}
+                                {currentBcvRate > 0 && (
+                                    <p className="text-gray-600 text-xs text-right mt-1">Tasa BCV: 1 USD = {currentBcvRate.toFixed(2)} Bs</p>
+                                )}
+                                {/* Aquí podrías añadir descuentos o costos de envío si aplicaran */}
+                                <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-300">
+                                    <span className="font-bold text-xl text-gray-800">Total a Pagar:</span>
+                                    <span className="font-bold text-xl text-blue-600">${totalUSD.toFixed(2)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
