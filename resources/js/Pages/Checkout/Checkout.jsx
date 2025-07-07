@@ -556,20 +556,6 @@ const Checkout = ({ cartItems: initialCartItems, user, errors, bcvRate: initialB
                                             />
                                         </Fragment>
                                     )}
-
-                                    {/* Campo de referencia de pago, si aplica */}
-                                    {formData.paymentMethod !== 'mobile-payment' && formData.paymentMethod !== '' && (
-                                        <InputField
-                                            type="text"
-                                            name="numero_referencia_pago"
-                                            label="Número de Referencia de Pago (Opcional)"
-                                            value={formData.numero_referencia_pago}
-                                            onChange={handleChange}
-                                            required={false}
-                                            placeholder="Referencia de tu pago (si aplica)"
-                                            error={errors.numero_referencia_pago}
-                                        />
-                                    )}
                                 </div>
                             )}
 
